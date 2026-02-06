@@ -1,103 +1,178 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:fillViewport="true">
 
-    <!-- Status Section -->
-    <TextView
-        android:id="@+id/statusText"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:background="#EEEEEE"
-        android:padding="8dp"
-        android:text="Status: Not Connected"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toTopOf="@id/connectButton"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:orientation="vertical"
+        android:padding="8dp">
 
-    <!-- Connect Button -->
-    <Button
-        android:id="@+id/connectButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:text="Connect to Device"
-        app:layout_constraintBottom_toTopOf="@+id/textView"
-        tools:layout_editor_absoluteX="16dp" />
-
-    <!-- Received Messages Section -->
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="4dp"
-        android:text="Messages:"
-        android:textSize="14sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toTopOf="@+id/scrollView2"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <ScrollView
-        android:id="@+id/scrollView2"
-        android:layout_width="match_parent"
-        android:layout_height="134dp"
-        android:layout_marginBottom="8dp"
-        android:layout_weight="1"
-        android:background="@drawable/text_border"
-        android:padding="8dp"
-        app:layout_constraintBottom_toTopOf="@+id/messageInput"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <TextView
-            android:id="@+id/receivedText"
+        <!-- Lock Toggle and Robot Button Row -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Waiting for data..."
-            android:textSize="14sp" />
-    </ScrollView>
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="4dp">
 
-    <!-- Send Message Section -->
+            <ToggleButton
+                android:id="@+id/lockToggle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textOn="Locked"
+                android:textOff="Unlocked"
+                android:checked="false" />
 
-    <EditText
-        android:id="@+id/messageInput"
-        android:layout_width="0dp"
-        android:layout_height="50dp"
-        android:layout_marginEnd="4dp"
-        android:background="@drawable/text_border"
-        android:hint="Type message here..."
-        android:inputType="text"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/sendButton"
-        app:layout_constraintStart_toStartOf="parent" />
+            <View
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
 
-    <ImageView
-        android:id="@+id/imageView"
-        android:layout_width="358dp"
-        android:layout_height="307dp"
-        android:layout_marginBottom="16dp"
-        app:layout_constraintBottom_toTopOf="@+id/statusText"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@drawable/ic_launcher_background" />
+            <Button
+                android:id="@+id/spawnRobotButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Spawn Robot"
+                android:textSize="12sp" />
+        </LinearLayout>
 
-    <ImageButton
-        android:id="@+id/sendButton"
-        android:layout_width="wrap_content"
-        android:layout_height="50dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="1.0"
-        app:layout_constraintStart_toEndOf="@+id/messageInput"
-        app:srcCompat="@android:drawable/ic_menu_send" />
+        <!-- Arena Map View - Fixed height -->
+        <com.example.mdp_14.ArenaMapView
+            android:id="@+id/arenaMapView"
+            android:layout_width="match_parent"
+            android:layout_height="320dp"
+            android:background="@drawable/text_border" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <!-- Obstacle Control Buttons - Row 1 -->
+        <LinearLayout
+            android:id="@+id/obstacleControls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <Button
+                android:id="@+id/addObstacleButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:text="Add"
+                android:textSize="11sp" />
+
+            <Button
+                android:id="@+id/editObstacleButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
+                android:text="Edit"
+                android:textSize="11sp" />
+
+            <Button
+                android:id="@+id/deleteObstacleButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
+                android:text="Delete"
+                android:textSize="11sp" />
+
+            <Button
+                android:id="@+id/clearAllButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:text="Clear"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- Send Obstacles Button -->
+        <Button
+            android:id="@+id/sendObstaclesButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Send Obstacles to Robot"
+            android:textSize="12sp"
+            android:backgroundTint="#4CAF50" />
+
+        <!-- Status Section -->
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="#EEEEEE"
+            android:padding="8dp"
+            android:text="Status: Not Connected"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <!-- Connect Button -->
+        <Button
+            android:id="@+id/connectButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Connect to Device" />
+
+        <!-- Received Messages Section -->
+        <TextView
+            android:id="@+id/textView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Messages:"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <ScrollView
+            android:id="@+id/scrollView2"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/text_border"
+            android:padding="8dp">
+
+            <TextView
+                android:id="@+id/receivedText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Waiting for data..."
+                android:textSize="14sp" />
+        </ScrollView>
+
+        <!-- Send Message Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/messageInput"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:background="@drawable/text_border"
+                android:hint="Type message here..."
+                android:inputType="text"
+                android:padding="8dp" />
+
+            <ImageButton
+                android:id="@+id/sendButton"
+                android:layout_width="wrap_content"
+                android:layout_height="50dp"
+                android:contentDescription="Send message"
+                app:srcCompat="@android:drawable/ic_menu_send" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
