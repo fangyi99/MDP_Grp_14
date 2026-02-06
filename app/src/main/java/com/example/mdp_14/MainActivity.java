@@ -501,6 +501,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     @Override
+    public void onObstacleRemovedByDrag(Obstacle obstacle) {
+        Log.d(TAG, "Obstacle removed by drag: " + obstacle);
+        Toast.makeText(this, "Obstacle #" + obstacle.getId() + " removed", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
     public void onRobotPositionChanged(Robot robot) {
         Log.d(TAG, "Robot moved: " + robot);
         // Update position and direction displays

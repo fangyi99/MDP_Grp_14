@@ -27,6 +27,7 @@ public class ArenaMapView extends View {
     // Paints
     private Paint gridPaint;
     private Paint obstaclePaint;
+    private Paint obstacleDeletePaint;  // For drag-to-delete visual feedback
     private Paint targetIndicatorPaint;
     private Paint targetTextPaint;
     private Paint gridLabelPaint;
@@ -44,6 +45,10 @@ public class ArenaMapView extends View {
     private boolean isDraggingRobot = false;
     private float dragOffsetX, dragOffsetY;
 
+    // Track dragged obstacle screen position for drag-to-delete
+    private float draggedScreenX, draggedScreenY;
+    private boolean isOutsideGrid = false;
+
     // Lock state
     private boolean isDragLocked = false;
 
@@ -54,6 +59,7 @@ public class ArenaMapView extends View {
         void onObstacleLongPress(Obstacle obstacle);
         void onObstacleSelected(Obstacle obstacle);
         void onObstaclePositionChanged(Obstacle obstacle);
+        void onObstacleRemovedByDrag(Obstacle obstacle);
         void onRobotPositionChanged(Robot robot);
         void onEmptyCellTap(int gridX, int gridY);
     }
@@ -84,6 +90,11 @@ public class ArenaMapView extends View {
         obstaclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         obstaclePaint.setColor(Color.BLACK);
         obstaclePaint.setStyle(Paint.Style.FILL);
+
+        // Obstacle delete preview paint (red, semi-transparent)
+        obstacleDeletePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        obstacleDeletePaint.setColor(Color.parseColor("#80FF0000"));  // Semi-transparent red
+        obstacleDeletePaint.setStyle(Paint.Style.FILL);
 
         // Target indicator paint
         targetIndicatorPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -185,9 +196,16 @@ public class ArenaMapView extends View {
         canvas.drawColor(Color.WHITE);
         drawGrid(canvas);
 
-        // Draw obstacles
+        // Draw obstacles (skip the one being dragged, we'll draw it separately)
         for (Obstacle obstacle : obstacles) {
-            drawObstacle(canvas, obstacle, obstacle == selectedObstacle);
+            if (obstacle != draggedObstacle) {
+                drawObstacle(canvas, obstacle, obstacle == selectedObstacle);
+            }
+        }
+
+        // Draw dragged obstacle at its current drag position
+        if (draggedObstacle != null) {
+            drawDraggedObstacle(canvas, draggedObstacle);
         }
 
         // Draw robot on top
@@ -259,6 +277,34 @@ public class ArenaMapView extends View {
             // No recognized target yet, just show obstacle ID in center
             canvas.drawText(String.valueOf(obstacle.getId()), centerX, centerY + targetTextPaint.getTextSize() / 3, targetTextPaint);
         }
+    }
+
+    /**
+     * Draw obstacle being dragged at its current screen position with delete feedback
+     */
+    private void drawDraggedObstacle(Canvas canvas, Obstacle obstacle) {
+        float left = draggedScreenX;
+        float top = draggedScreenY;
+        float right = left + obstacle.getWidth() * cellSize;
+        float bottom = top + obstacle.getHeight() * cellSize;
+
+        RectF rect = new RectF(left + 2, top + 2, right - 2, bottom - 2);
+
+        // Use delete paint if outside grid, otherwise normal paint
+        if (isOutsideGrid) {
+            canvas.drawRect(rect, obstacleDeletePaint);
+        } else {
+            canvas.drawRect(rect, obstaclePaint);
+            canvas.drawRect(rect, selectedPaint);  // Always show selection when dragging
+        }
+
+        // Draw target face indicator
+        drawTargetFaceIndicator(canvas, obstacle, left, top, right, bottom);
+
+        // Draw obstacle ID
+        float centerX = (left + right) / 2;
+        float centerY = (top + bottom) / 2;
+        canvas.drawText(String.valueOf(obstacle.getId()), centerX, centerY + targetTextPaint.getTextSize() / 3, targetTextPaint);
     }
 
     /**
@@ -361,9 +407,12 @@ public class ArenaMapView extends View {
                 if (obstacle != null) {
                     draggedObstacle = obstacle;
                     selectedObstacle = obstacle;
-                    dragOffsetX = event.getX() - (offsetX + obstacle.getGridX() * cellSize);
-                    // Flip Y for drag offset calculation
-                    dragOffsetY = event.getY() - (offsetY + (GRID_SIZE - obstacle.getGridY() - obstacle.getHeight()) * cellSize);
+                    // Calculate drag offset from touch point to obstacle's top-left corner
+                    draggedScreenX = offsetX + obstacle.getGridX() * cellSize;
+                    draggedScreenY = offsetY + (GRID_SIZE - obstacle.getGridY() - obstacle.getHeight()) * cellSize;
+                    dragOffsetX = event.getX() - draggedScreenX;
+                    dragOffsetY = event.getY() - draggedScreenY;
+                    isOutsideGrid = false;
                     invalidate();
                     return true;
                 }
@@ -391,21 +440,35 @@ public class ArenaMapView extends View {
                 }
 
                 if (draggedObstacle != null) {
-                    float newX = event.getX() - dragOffsetX;
-                    float newY = event.getY() - dragOffsetY;
-                    int newGridX = Math.round((newX - offsetX) / cellSize);
-                    // Flip Y: convert screen position to grid position
-                    int newScreenGridY = Math.round((newY - offsetY) / cellSize);
+                    // Track screen position for visual feedback
+                    draggedScreenX = event.getX() - dragOffsetX;
+                    draggedScreenY = event.getY() - dragOffsetY;
+
+                    // Calculate grid position (unclamped to check if outside)
+                    int newGridX = Math.round((draggedScreenX - offsetX) / cellSize);
+                    int newScreenGridY = Math.round((draggedScreenY - offsetY) / cellSize);
                     int newGridY = GRID_SIZE - draggedObstacle.getHeight() - newScreenGridY;
 
-                    newGridX = Math.max(0, Math.min(GRID_SIZE - draggedObstacle.getWidth(), newGridX));
-                    newGridY = Math.max(0, Math.min(GRID_SIZE - draggedObstacle.getHeight(), newGridY));
+                    // Check if obstacle is outside the grid (for delete feedback)
+                    float gridLeft = offsetX;
+                    float gridTop = offsetY;
+                    float gridRight = offsetX + GRID_SIZE * cellSize;
+                    float gridBottom = offsetY + GRID_SIZE * cellSize;
+                    float obsCenterX = draggedScreenX + (draggedObstacle.getWidth() * cellSize) / 2;
+                    float obsCenterY = draggedScreenY + (draggedObstacle.getHeight() * cellSize) / 2;
 
-                    if (newGridX != draggedObstacle.getGridX() || newGridY != draggedObstacle.getGridY()) {
+                    isOutsideGrid = obsCenterX < gridLeft || obsCenterX > gridRight ||
+                                    obsCenterY < gridTop || obsCenterY > gridBottom;
+
+                    // Update grid position only if inside grid bounds
+                    if (!isOutsideGrid) {
+                        newGridX = Math.max(0, Math.min(GRID_SIZE - draggedObstacle.getWidth(), newGridX));
+                        newGridY = Math.max(0, Math.min(GRID_SIZE - draggedObstacle.getHeight(), newGridY));
                         draggedObstacle.setGridX(newGridX);
                         draggedObstacle.setGridY(newGridY);
-                        invalidate();
                     }
+
+                    invalidate();
                     return true;
                 }
                 break;
@@ -418,10 +481,24 @@ public class ArenaMapView extends View {
                 isDraggingRobot = false;
 
                 if (draggedObstacle != null) {
-                    if (listener != null) {
-                        listener.onObstaclePositionChanged(draggedObstacle);
+                    if (isOutsideGrid) {
+                        // Remove the obstacle if dropped outside the grid
+                        Obstacle removedObstacle = draggedObstacle;
+                        obstacles.remove(draggedObstacle);
+                        if (selectedObstacle == draggedObstacle) {
+                            selectedObstacle = null;
+                        }
+                        if (listener != null) {
+                            listener.onObstacleRemovedByDrag(removedObstacle);
+                        }
+                    } else {
+                        if (listener != null) {
+                            listener.onObstaclePositionChanged(draggedObstacle);
+                        }
                     }
                     draggedObstacle = null;
+                    isOutsideGrid = false;
+                    invalidate();
                 }
                 break;
         }
