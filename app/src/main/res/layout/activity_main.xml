@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -21,32 +22,98 @@
             android:orientation="vertical"
             android:layout_marginEnd="8dp">
 
-            <!-- Map -->
-            <FrameLayout
+            <!-- Lock Toggle and Robot Button Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="4dp">
+
+                <ToggleButton
+                    android:id="@+id/lockToggle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:textOn="Locked"
+                    android:textOff="Unlocked"
+                    android:textSize="10sp"
+                    android:checked="false" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <Button
+                    android:id="@+id/spawnRobotButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="Robot"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <!-- Arena Map View -->
+            <com.example.mdp_14.ArenaMapView
+                android:id="@+id/arenaMapView"
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
-                android:background="#FFFFFF"
-                android:padding="8dp">
+                android:background="#FFFFFF" />
 
-                <ImageView
-                    android:id="@+id/mapPlaceholder"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="fitCenter"
-                    android:background="#E0E0E0"
-                    android:contentDescription="Map Area"/>
+            <!-- Obstacle Control Buttons -->
+            <LinearLayout
+                android:id="@+id/obstacleControls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:text="20x20 GRID MAP"
-                    android:textAlignment="center"
-                    android:textSize="16sp"
-                    android:textColor="#9E9E9E"
-                    android:textStyle="bold"/>
-            </FrameLayout>
+                <Button
+                    android:id="@+id/addObstacleButton"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="2dp"
+                    android:text="Add"
+                    android:textSize="10sp" />
+
+                <Button
+                    android:id="@+id/editObstacleButton"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="2dp"
+                    android:text="Edit"
+                    android:textSize="10sp" />
+
+                <Button
+                    android:id="@+id/deleteObstacleButton"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="2dp"
+                    android:text="Del"
+                    android:textSize="10sp" />
+
+                <Button
+                    android:id="@+id/clearAllButton"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="2dp"
+                    android:text="Clear"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <!-- Send Obstacles Button -->
+            <Button
+                android:id="@+id/sendObstaclesButton"
+                android:layout_width="match_parent"
+                android:layout_height="36dp"
+                android:layout_marginTop="4dp"
+                android:text="Send Obstacles"
+                android:textSize="10sp"
+                android:backgroundTint="#4CAF50" />
         </LinearLayout>
 
         <!-- Shortcuts -->
@@ -181,7 +248,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:text="Position"
+                android:text="Direction"
                 android:textSize="12sp"
                 android:singleLine="true"
                 android:ellipsize="marquee"
