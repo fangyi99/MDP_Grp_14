@@ -8,7 +8,7 @@ public class Robot {
     public static final int SIZE = 3; // Robot is always 3x3 grid units
 
     private int gridX;      // X position on grid (left edge)
-    private int gridY;      // Y position on grid (top edge)
+    private int gridY;      // Y position on grid (bottom edge, since 0,0 is bottom-left)
     private Direction facing;
 
     public enum Direction {
@@ -45,9 +45,9 @@ public class Robot {
 
     public Robot() {
         // Default position: bottom-left corner, facing North
-        // For a 20x20 grid, bottom-left for a 3x3 robot is (0, 17)
+        // With (0,0) at bottom-left, the robot spawns at (0, 0)
         this.gridX = 0;
-        this.gridY = 17;
+        this.gridY = 0;
         this.facing = Direction.NORTH;
     }
 

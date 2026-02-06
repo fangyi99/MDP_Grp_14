@@ -162,15 +162,16 @@ public class ArenaMapView extends View {
         int width = getWidth();
         int height = getHeight();
 
-        float labelMargin = 30f;
-        float availableWidth = width - labelMargin;
-        float availableHeight = height - labelMargin;
+        float labelMarginLeft = 30f;   // For row labels on left
+        float labelMarginBottom = 30f; // For column labels at bottom
+        float availableWidth = width - labelMarginLeft;
+        float availableHeight = height - labelMarginBottom;
 
         cellSize = Math.min(availableWidth / GRID_SIZE, availableHeight / GRID_SIZE);
 
         float gridWidth = cellSize * GRID_SIZE;
         float gridHeight = cellSize * GRID_SIZE;
-        offsetX = labelMargin + (availableWidth - gridWidth) / 2;
+        offsetX = labelMarginLeft + (availableWidth - gridWidth) / 2;
         offsetY = (availableHeight - gridHeight) / 2;
 
         targetTextPaint.setTextSize(cellSize * 0.5f);
@@ -208,22 +209,24 @@ public class ArenaMapView extends View {
             canvas.drawLine(offsetX, y, offsetX + GRID_SIZE * cellSize, y, gridPaint);
         }
 
-        // Draw column labels (0-19)
+        // Draw column labels (0-19) at bottom
         for (int i = 0; i < GRID_SIZE; i++) {
             float x = offsetX + i * cellSize + cellSize / 2;
-            canvas.drawText(String.valueOf(i), x, offsetY - 5, gridLabelPaint);
+            canvas.drawText(String.valueOf(i), x, offsetY + GRID_SIZE * cellSize + gridLabelPaint.getTextSize() + 5, gridLabelPaint);
         }
 
-        // Draw row labels (0-19)
+        // Draw row labels (0-19) with 0 at bottom, 19 at top
         for (int i = 0; i < GRID_SIZE; i++) {
+            int gridY = GRID_SIZE - 1 - i;  // Flip: screen row 0 = grid row 19
             float y = offsetY + i * cellSize + cellSize / 2 + gridLabelPaint.getTextSize() / 3;
-            canvas.drawText(String.valueOf(i), offsetX - 15, y, gridLabelPaint);
+            canvas.drawText(String.valueOf(gridY), offsetX - 15, y, gridLabelPaint);
         }
     }
 
     private void drawObstacle(Canvas canvas, Obstacle obstacle, boolean isSelected) {
         float left = offsetX + obstacle.getGridX() * cellSize;
-        float top = offsetY + obstacle.getGridY() * cellSize;
+        // Flip Y: gridY=0 at bottom, so higher gridY = lower screen Y
+        float top = offsetY + (GRID_SIZE - obstacle.getGridY() - obstacle.getHeight()) * cellSize;
         float right = left + obstacle.getWidth() * cellSize;
         float bottom = top + obstacle.getHeight() * cellSize;
 
@@ -288,7 +291,8 @@ public class ArenaMapView extends View {
 
     private void drawRobot(Canvas canvas) {
         float left = offsetX + robot.getGridX() * cellSize;
-        float top = offsetY + robot.getGridY() * cellSize;
+        // Flip Y: gridY=0 at bottom
+        float top = offsetY + (GRID_SIZE - robot.getGridY() - Robot.SIZE) * cellSize;
         float right = left + Robot.SIZE * cellSize;
         float bottom = top + Robot.SIZE * cellSize;
 
@@ -347,7 +351,8 @@ public class ArenaMapView extends View {
                 if (robot != null && robot.containsPoint(gridX, gridY)) {
                     isDraggingRobot = true;
                     dragOffsetX = event.getX() - (offsetX + robot.getGridX() * cellSize);
-                    dragOffsetY = event.getY() - (offsetY + robot.getGridY() * cellSize);
+                    // Flip Y for drag offset calculation
+                    dragOffsetY = event.getY() - (offsetY + (GRID_SIZE - robot.getGridY() - Robot.SIZE) * cellSize);
                     return true;
                 }
 
@@ -357,7 +362,8 @@ public class ArenaMapView extends View {
                     draggedObstacle = obstacle;
                     selectedObstacle = obstacle;
                     dragOffsetX = event.getX() - (offsetX + obstacle.getGridX() * cellSize);
-                    dragOffsetY = event.getY() - (offsetY + obstacle.getGridY() * cellSize);
+                    // Flip Y for drag offset calculation
+                    dragOffsetY = event.getY() - (offsetY + (GRID_SIZE - obstacle.getGridY() - obstacle.getHeight()) * cellSize);
                     invalidate();
                     return true;
                 }
@@ -368,9 +374,11 @@ public class ArenaMapView extends View {
                     float newX = event.getX() - dragOffsetX;
                     float newY = event.getY() - dragOffsetY;
                     int newGridX = Math.round((newX - offsetX) / cellSize);
-                    int newGridY = Math.round((newY - offsetY) / cellSize);
+                    // Flip Y: convert screen position to grid position
+                    int newScreenGridY = Math.round((newY - offsetY) / cellSize);
+                    int newGridY = GRID_SIZE - Robot.SIZE - newScreenGridY;
 
-                    // Clamp to grid bounds (robot is 2x2)
+                    // Clamp to grid bounds (robot is 3x3)
                     newGridX = Math.max(0, Math.min(GRID_SIZE - Robot.SIZE, newGridX));
                     newGridY = Math.max(0, Math.min(GRID_SIZE - Robot.SIZE, newGridY));
 
@@ -386,7 +394,9 @@ public class ArenaMapView extends View {
                     float newX = event.getX() - dragOffsetX;
                     float newY = event.getY() - dragOffsetY;
                     int newGridX = Math.round((newX - offsetX) / cellSize);
-                    int newGridY = Math.round((newY - offsetY) / cellSize);
+                    // Flip Y: convert screen position to grid position
+                    int newScreenGridY = Math.round((newY - offsetY) / cellSize);
+                    int newGridY = GRID_SIZE - draggedObstacle.getHeight() - newScreenGridY;
 
                     newGridX = Math.max(0, Math.min(GRID_SIZE - draggedObstacle.getWidth(), newGridX));
                     newGridY = Math.max(0, Math.min(GRID_SIZE - draggedObstacle.getHeight(), newGridY));
@@ -421,7 +431,9 @@ public class ArenaMapView extends View {
 
     private int[] screenToGrid(float screenX, float screenY) {
         int gridX = (int) ((screenX - offsetX) / cellSize);
-        int gridY = (int) ((screenY - offsetY) / cellSize);
+        int screenGridY = (int) ((screenY - offsetY) / cellSize);
+        // Flip Y: screen row 0 (top) = grid row 19, screen row 19 (bottom) = grid row 0
+        int gridY = GRID_SIZE - 1 - screenGridY;
         gridX = Math.max(0, Math.min(GRID_SIZE - 1, gridX));
         gridY = Math.max(0, Math.min(GRID_SIZE - 1, gridY));
         return new int[]{gridX, gridY};
