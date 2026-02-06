@@ -4,16 +4,26 @@ import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.Context;
 import android.content.pm.PackageManager;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -23,27 +33,50 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
     private static final String TAG = "MainActivity";
     private static final int REQUEST_BLUETOOTH_PERMISSIONS = 1;
-
-    // Standard SerialPortService ID
     private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
-    private TextView statusText;
+    // Menu items for ActionBar
+    private MenuItem deviceNameMenuItem;
+    private MenuItem connectionIconMenuItem;
+    private String connectedDeviceName = null;
+
+    // UI Elements
+    private TextView robotStatusText;
     private TextView receivedText;
     private EditText messageInput;
-    private Button connectButton;
     private ImageButton sendButton;
+    private Button clearMessagesButton;
+    private Button upButton;
+    private Button downButton;
+    private Button leftButton;
+    private Button rightButton;
+    private Switch tiltControlSwitch;
 
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothService bluetoothService;
     private boolean isConnected = false;
+
+    // Tilt control variables
+    private SensorManager sensorManager;
+    private Sensor accelerometer;
+    private boolean isTiltControlEnabled = false;
+    private long lastTiltCommandTime = 0;
+    private static final long TILT_COMMAND_INTERVAL = 500;
+    private static final float TILT_THRESHOLD = 3.0f;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,11 +84,20 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // Initialize UI elements
-        statusText = findViewById(R.id.statusText);
+        robotStatusText = findViewById(R.id.robotStatusTxt);
         receivedText = findViewById(R.id.receivedText);
         messageInput = findViewById(R.id.messageInput);
-        connectButton = findViewById(R.id.connectButton);
-        sendButton = findViewById(R.id.sendButton);
+        sendButton = findViewById(R.id.sendBtn);
+        clearMessagesButton = findViewById(R.id.clearMessagesBtn);
+        upButton = findViewById(R.id.upBtn);
+        downButton = findViewById(R.id.downBtn);
+        leftButton = findViewById(R.id.leftBtn);
+        rightButton = findViewById(R.id.rightBtn);
+        tiltControlSwitch = findViewById(R.id.tiltControlSwitch);
+
+        // Initialize sensor manager
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
         // Get Bluetooth adapter
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -70,27 +112,83 @@ public class MainActivity extends AppCompatActivity {
         bluetoothService = new BluetoothService(messageHandler, bluetoothAdapter);
 
         // Set up button listeners
-        connectButton.setOnClickListener(v -> {
-            if (!isConnected) {
-                checkPermissionsAndConnect();
+        // Direction button listeners
+        upButton.setOnClickListener(v -> sendCommand("move:up"));
+        downButton.setOnClickListener(v -> sendCommand("move:down"));
+        leftButton.setOnClickListener(v -> sendCommand("move:left"));
+        rightButton.setOnClickListener(v -> sendCommand("move:right"));
+
+        // Custom message send button
+        sendButton.setOnClickListener(v -> {
+            String message = messageInput.getText().toString().trim();
+            if (!message.isEmpty()) {
+                sendCommand(message);
+                messageInput.setText("");
             } else {
-                disconnect();
+                Toast.makeText(this, "Please enter a message", Toast.LENGTH_SHORT).show();
             }
         });
 
-        sendButton.setOnClickListener(v -> {
-            String message = messageInput.getText().toString();
-            if (!message.isEmpty()) {
-                sendMessage(message);
-                messageInput.setText("");
+        // Tilt control switch listener
+        tiltControlSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked && isConnected) {
+                enableTiltControl();
+            } else {
+                disableTiltControl();
             }
         });
+
+        clearMessagesButton.setOnClickListener(v -> clearMessages());
 
         // Check permissions on startup
         checkPermissions();
 
         // Auto-start listening for incoming connections
         startListeningOnStartup();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Create connect/disconnect menu item
+        getMenuInflater().inflate(R.menu.main_menu, menu);
+
+        // Get references to menu items from the inflated menu
+        deviceNameMenuItem = menu.findItem(R.id.deviceNameTxt);
+        connectionIconMenuItem = menu.findItem(R.id.connectionIcon);
+
+        updateActionBarMenuItem();
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.connectionIcon) {
+            if (!isConnected) {
+                checkPermissionsAndConnect();
+            } else {
+                disconnect();
+            }
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    /**
+     * Update menu item based on connection status
+     */
+    private void updateActionBarMenuItem() {
+        if (deviceNameMenuItem != null && connectionIconMenuItem != null) {
+            if (isConnected && connectedDeviceName != null) {
+                // Show device name and disconnect icon
+                deviceNameMenuItem.setTitle(connectedDeviceName);
+                deviceNameMenuItem.setVisible(true);
+                connectionIconMenuItem.setIcon(R.drawable.disconnect);
+            } else {
+                // Hide device name, show connect icon
+                deviceNameMenuItem.setVisible(false);
+                connectionIconMenuItem.setIcon(R.drawable.connect);
+            }
+        }
     }
 
     /**
@@ -108,7 +206,7 @@ public class MainActivity extends AppCompatActivity {
 
             if (!isConnected) {
                 bluetoothService.startServer();
-                statusText.setText("Status: Ready");
+                updateConnectionStatus(false, "Ready (Listening...)");
                 Log.d(TAG, "Started listening for incoming connections");
             }
         }, 500);
@@ -123,41 +221,182 @@ public class MainActivity extends AppCompatActivity {
             switch (msg.what) {
                 case BluetoothService.MESSAGE_READ:
                     String receivedMessage = (String) msg.obj;
-                    appendReceivedText("Received: " + receivedMessage);
+                    handleIncomingMessage(receivedMessage);
                     break;
 
                 case BluetoothService.MESSAGE_WRITE:
                     String sentMessage = (String) msg.obj;
-                    appendReceivedText("Sent: " + sentMessage);
+                    logMessage("Sent: " + sentMessage, "#1976D2");
                     break;
 
                 case BluetoothService.MESSAGE_DISCONNECTED:
-                    disconnect();
-                    Toast.makeText(MainActivity.this, "Device disconnected", Toast.LENGTH_SHORT).show();
-                    // Restart listening after disconnect
-                    bluetoothService.restartServer();
-                    statusText.setText("Status: Ready");
+                    handleDisconnection();
                     break;
 
                 case BluetoothService.MESSAGE_CONNECTED:
-                    isConnected = true;
-                    statusText.setText("Status: Connected");
-                    connectButton.setText("Disconnect");
-                    connectButton.setEnabled(true);
-                    sendButton.setEnabled(true);
-                    receivedText.setText("");
-                    Toast.makeText(MainActivity.this, "Device connected!", Toast.LENGTH_SHORT).show();
+                    handleIncomingConnection();
                     break;
             }
         }
     };
 
     /**
+     * Handle incoming Bluetooth messages
+     */
+    private void handleIncomingMessage(String message) {
+
+        // Add to detailed message log
+        logMessage("Received: " + message, "#388E3C");
+
+        // Parse different message types
+        if (message.contains("status")){
+            handleStatusUpdate(message);
+        } else if (message.contains("TARGET,")) {
+            handleTargetMessage(message);
+        } else if (message.contains("ROBOT,")) {
+            handleRobotUpdate(message);
+        }
+    }
+
+    /**
+     * Handle STATUS message
+     */
+    private void handleStatusUpdate(String message) {
+        try {
+            JSONObject json = new JSONObject(message);
+            String statusMsg = json.getString("status").toUpperCase();
+            robotStatusText.setText(statusMsg);
+            return;
+        } catch (JSONException e) {
+        // Not a valid JSON
+        Log.d(TAG, "Not a JSON status message: " + message);
+    }
+    }
+
+    /**
+     * Handle TARGET message
+     */
+    private void handleTargetMessage(String message) {
+        // TODO: Parse and update obstacle with target ID
+        logMessage("Target detected: " + message, "#FFA000");
+    }
+
+    /**
+     * Handle ROBOT position update
+     */
+    private void handleRobotUpdate(String message) {
+        // TODO: Parse and update robot position on map
+        logMessage("Robot update: " + message, "#1976D2");
+    }
+
+    /**
+     * Add timestamped message to detailed log
+     */
+    private void logMessage(String message, String colorHex) {
+        String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
+        String currentText = receivedText.getText().toString();
+
+        // Clear "Waiting for data..." on first message
+        if (currentText.equals("Waiting for data...")) {
+            currentText = "";
+        }
+
+        String newText = "[" + timestamp + "] " + message + "\n" + currentText;
+
+        // Limit to last 20 lines
+        String[] lines = newText.split("\n");
+        if (lines.length > 20) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 20; i++) {
+                sb.append(lines[i]).append("\n");
+            }
+            newText = sb.toString();
+        }
+
+        receivedText.setText(newText);
+    }
+
+    /**
+     * Clear message log
+     */
+    private void clearMessages() {
+        receivedText.setText("Waiting for data...");
+        Toast.makeText(this, "Messages cleared", Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * Update connection status UI
+     */
+    private void updateConnectionStatus(boolean connected, String deviceName) {
+        isConnected = connected;
+        connectedDeviceName = connected ? deviceName : null;
+
+        // Update ActionBar
+        updateActionBarMenuItem();
+
+        if (connected) {
+            // Enable controls
+            upButton.setEnabled(true);
+            downButton.setEnabled(true);
+            leftButton.setEnabled(true);
+            rightButton.setEnabled(true);
+            tiltControlSwitch.setEnabled(true);
+            sendButton.setEnabled(true);
+        } else {
+            // Disable controls
+            upButton.setEnabled(false);
+            downButton.setEnabled(false);
+            leftButton.setEnabled(false);
+            rightButton.setEnabled(false);
+            tiltControlSwitch.setEnabled(false);
+            tiltControlSwitch.setChecked(false);
+            sendButton.setEnabled(false);
+            disableTiltControl();
+        }
+    }
+
+    /**
+     * Handle incoming connection
+     */
+    private void handleIncomingConnection() {
+        // For incoming connections, try to get device name from the socket
+        String deviceName = "Device";
+
+        // Try to get the actual device name if possible
+        try {
+            if (bluetoothService.socket != null && bluetoothService.socket.getRemoteDevice() != null) {
+                deviceName = bluetoothService.socket.getRemoteDevice().getName();
+                if (deviceName == null || deviceName.isEmpty()) {
+                    deviceName = bluetoothService.socket.getRemoteDevice().getAddress();
+                }
+            }
+        } catch (SecurityException e) {
+            Log.e(TAG, "Permission denied getting device name", e);
+            deviceName = "Connected Device";
+        }
+
+        updateConnectionStatus(true, deviceName);
+        logMessage("Device connected!", "#4CAF50");
+        Toast.makeText(this, "Device connected!", Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * Handle disconnection
+     */
+    private void handleDisconnection() {
+        updateConnectionStatus(false, "Disconnected");
+        logMessage("Connection lost. Reconnecting...", "#F44336");
+        Toast.makeText(this, "Device disconnected", Toast.LENGTH_SHORT).show();
+
+        // restartServer handles cleanup and delay internally
+        bluetoothService.restartServer();
+    }
+
+    /**
      * Check and request Bluetooth permissions
      */
     private void checkPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Android 12+
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
                     != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this,
@@ -171,7 +410,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Check permissions and initiate connection
+     * Check permissions and initiate connection (C.2)
      */
     private void checkPermissionsAndConnect() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -187,7 +426,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Show list of paired devices
+     * Show list of paired devices (C.2)
      */
     private void showDeviceList() {
         try {
@@ -207,7 +446,7 @@ public class MainActivity extends AppCompatActivity {
             }
 
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("Select Device")
+            builder.setTitle("Select Bluetooth Device")
                     .setItems(deviceNames, (dialog, which) -> {
                         connectToDevice(deviceList.get(which));
                     })
@@ -224,8 +463,7 @@ public class MainActivity extends AppCompatActivity {
      * Connect to the selected device
      */
     private void connectToDevice(final BluetoothDevice device) {
-        statusText.setText("Status: Connecting...");
-        connectButton.setEnabled(false);
+        updateConnectionStatus(false, "Connecting...");
 
         new Thread(() -> {
             try {
@@ -235,28 +473,22 @@ public class MainActivity extends AppCompatActivity {
 
                 runOnUiThread(() -> {
                     bluetoothService.connect(socket);
-                    isConnected = true;
-                    statusText.setText("Status: Connected to " + device.getName());
-                    connectButton.setText("Disconnect");
-                    connectButton.setEnabled(true);
-                    sendButton.setEnabled(true);
-                    receivedText.setText("");
+                    updateConnectionStatus(true, device.getName());
+                    logMessage("Connected to " + device.getName(), "#4CAF50");
                     Toast.makeText(MainActivity.this, "Connected!", Toast.LENGTH_SHORT).show();
                 });
 
             } catch (IOException e) {
                 Log.e(TAG, "Connection failed", e);
                 runOnUiThread(() -> {
-                    statusText.setText("Status: Connection Failed");
-                    connectButton.setEnabled(true);
-                    Toast.makeText(MainActivity.this, "Connection failed: " + e.getMessage(),
-                            Toast.LENGTH_LONG).show();
+                    updateConnectionStatus(false, "Connection Failed");
+                    logMessage("Connection failed: " + e.getMessage(), "#F44336");
+                    Toast.makeText(MainActivity.this, "Connection failed", Toast.LENGTH_LONG).show();
                 });
             } catch (SecurityException e) {
                 Log.e(TAG, "Permission denied", e);
                 runOnUiThread(() -> {
-                    statusText.setText("Status: Permission Denied");
-                    connectButton.setEnabled(true);
+                    updateConnectionStatus(false, "Permission Denied");
                 });
             }
         }).start();
@@ -267,38 +499,103 @@ public class MainActivity extends AppCompatActivity {
      */
     private void disconnect() {
         bluetoothService.stop();
-        isConnected = false;
-        statusText.setText("Status: Ready");
-        connectButton.setText("Connect to Device");
-        sendButton.setEnabled(false);
+        updateConnectionStatus(false, "Disconnected");
+        logMessage("Disconnected", "#FF9800");
 
-        // Restart listening after manual disconnect
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            bluetoothService.startServer();
-        }, 1000);
+        // restartServer handles cleanup and delay internally
+        bluetoothService.restartServer();
     }
 
     /**
-     * Send message via Bluetooth
+     * Send command via Bluetooth (C.1, C.3)
      */
-    private void sendMessage(String message) {
+    private void sendCommand(String command) {
         if (isConnected) {
-            bluetoothService.write(message + "\n"); // Add newline for easier parsing
+            bluetoothService.write(command);
         } else {
             Toast.makeText(this, "Not connected to any device", Toast.LENGTH_SHORT).show();
         }
     }
 
     /**
-     * Append text to received messages view
+     * Enable tilt control
      */
-    private void appendReceivedText(String text) {
-        String currentText = receivedText.getText().toString();
-        if (currentText.equals("Waiting for data...")) {
-            receivedText.setText(text);
-        } else {
-            receivedText.setText(currentText + "\n" + text);
+    private void enableTiltControl() {
+        if (accelerometer != null && isConnected) {
+            isTiltControlEnabled = true;
+            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+            logMessage("Tilt control enabled", "#4CAF50");
+
+            // Disable D-pad keys when tilt is active
+            upButton.setEnabled(false);
+            downButton.setEnabled(false);
+            leftButton.setEnabled(false);
+            rightButton.setEnabled(false);
+
+        } else if (!isConnected) {
+            tiltControlSwitch.setChecked(false);
+            Toast.makeText(this, "Connect to a device first", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    /**
+     * Disable tilt control
+     */
+    private void disableTiltControl() {
+        if (isTiltControlEnabled) {
+            isTiltControlEnabled = false;
+            sensorManager.unregisterListener(this);
+
+            // Re-enable D-pad keys
+            if (isConnected) {
+                upButton.setEnabled(true);
+                downButton.setEnabled(true);
+                leftButton.setEnabled(true);
+                rightButton.setEnabled(true);
+            }
+        }
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (!isTiltControlEnabled || !isConnected) {
+            return;
+        }
+
+        long currentTime = System.currentTimeMillis();
+
+        if (currentTime - lastTiltCommandTime < TILT_COMMAND_INTERVAL) {
+            return;
+        }
+
+        float x = event.values[0];
+        float y = event.values[1];
+
+        String command = null;
+
+        if (Math.abs(y) > Math.abs(x)) {
+            if (y < -TILT_THRESHOLD) {
+                command = "move:up";
+            } else if (y > TILT_THRESHOLD) {
+                command = "move:down";
+            }
+        } else {
+            if (x > TILT_THRESHOLD) {
+                command = "move:left";
+            } else if (x < -TILT_THRESHOLD) {
+                command = "move:right";
+            }
+        }
+
+        if (command != null) {
+            sendCommand(command);
+            lastTiltCommandTime = currentTime;
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // Not needed
     }
 
     @Override
@@ -322,5 +619,6 @@ public class MainActivity extends AppCompatActivity {
         if (bluetoothService != null) {
             bluetoothService.stop();
         }
+        disableTiltControl();
     }
 }

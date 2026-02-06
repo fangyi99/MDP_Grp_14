@@ -1,6 +1,5 @@
 package com.example.mdp_14;
 
-
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
@@ -18,7 +17,7 @@ public class BluetoothService {
     private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
     private BluetoothAdapter bluetoothAdapter;
-    private BluetoothSocket socket;
+    public BluetoothSocket socket; // Made public to access device info
     private InputStream inputStream;
     private OutputStream outputStream;
     private ConnectedThread connectedThread;
@@ -120,6 +119,7 @@ public class BluetoothService {
         try {
             if (socket != null) {
                 socket.close();
+                socket = null;
             }
         } catch (IOException e) {
             Log.e(TAG, "Error closing socket", e);
@@ -129,10 +129,43 @@ public class BluetoothService {
     /**
      * Restart server after disconnection
      */
-    public synchronized void restartServer() {
+    public void restartServer() {
         Log.d(TAG, "restartServer: Restarting server mode");
-        stop();
-        startServer();
+
+        new Thread(() -> {
+            synchronized (this) {
+                // Stop everything first
+                if (connectedThread != null) {
+                    connectedThread.cancel();
+                    connectedThread = null;
+                }
+
+                if (acceptThread != null) {
+                    acceptThread.cancel();
+                    acceptThread = null;
+                }
+
+                try {
+                    if (socket != null) {
+                        socket.close();
+                        socket = null;
+                    }
+                } catch (IOException e) {
+                    Log.e(TAG, "Error closing socket during restart", e);
+                }
+            }
+
+            // Delay to let OS fully release the socket
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Log.e(TAG, "Interrupted during restart delay", e);
+            }
+
+            // Now start server again
+            startServer();
+            Log.d(TAG, "restartServer: Server restarted successfully");
+        }).start();
     }
 
     /**
@@ -200,6 +233,7 @@ public class BluetoothService {
     private class ConnectedThread extends Thread {
         private final InputStream inStream;
         private final OutputStream outStream;
+        private volatile boolean cancelled = false;
 
         public ConnectedThread() {
             inStream = inputStream;
@@ -211,20 +245,30 @@ public class BluetoothService {
             int bytes;
 
             // Keep listening to the InputStream while connected
-            while (true) {
+            while (!cancelled) {
                 try {
                     // Read from the InputStream
                     bytes = inStream.read(buffer);
 
+                    if (bytes == -1) {
+                        // Stream closed cleanly
+                        Log.d(TAG, "Stream closed, disconnected");
+                        handler.obtainMessage(MESSAGE_DISCONNECTED).sendToTarget();
+                        break;
+                    }
+
                     // Send the obtained bytes to the UI Activity
-                    String receivedMessage = new String(buffer, 0, bytes);
-                    handler.obtainMessage(MESSAGE_READ, bytes, -1, receivedMessage)
-                            .sendToTarget();
+                    String receivedMessage = new String(buffer, 0, bytes).trim();
+                    if (!receivedMessage.isEmpty()) {
+                        handler.obtainMessage(MESSAGE_READ, bytes, -1, receivedMessage)
+                                .sendToTarget();
+                    }
 
                 } catch (IOException e) {
-                    Log.e(TAG, "disconnected", e);
-                    handler.obtainMessage(MESSAGE_DISCONNECTED)
-                            .sendToTarget();
+                    if (!cancelled) {
+                        Log.e(TAG, "disconnected", e);
+                        handler.obtainMessage(MESSAGE_DISCONNECTED).sendToTarget();
+                    }
                     break;
                 }
             }
@@ -236,6 +280,7 @@ public class BluetoothService {
         public void write(byte[] buffer) {
             try {
                 outStream.write(buffer);
+                outStream.flush(); // Flush to ensure data is sent
 
                 // Share the sent message with UI
                 String sentMessage = new String(buffer);
@@ -248,10 +293,12 @@ public class BluetoothService {
         }
 
         public void cancel() {
+            cancelled = true;
             try {
-                socket.close();
+                inStream.close();
+                outStream.close();
             } catch (IOException e) {
-                Log.e(TAG, "Error closing socket", e);
+                Log.e(TAG, "Error closing streams", e);
             }
         }
     }
