@@ -274,8 +274,10 @@ public class ArenaMapView extends View {
             largeTargetPaint.setFakeBoldText(true);
             canvas.drawText(obstacle.getRecognizedTargetId(), centerX, centerY + largeTargetPaint.getTextSize() / 3, largeTargetPaint);
         } else {
-            // No recognized target yet, just show obstacle ID in center
-            canvas.drawText(String.valueOf(obstacle.getId()), centerX, centerY + targetTextPaint.getTextSize() / 3, targetTextPaint);
+            // No recognized target yet, just show obstacle ID in center (smaller font)
+            Paint smallIdPaint = new Paint(targetTextPaint);
+            smallIdPaint.setTextSize(cellSize * 0.35f);
+            canvas.drawText(String.valueOf(obstacle.getId()), centerX, centerY + smallIdPaint.getTextSize() / 3, smallIdPaint);
         }
     }
 
@@ -301,10 +303,12 @@ public class ArenaMapView extends View {
         // Draw target face indicator
         drawTargetFaceIndicator(canvas, obstacle, left, top, right, bottom);
 
-        // Draw obstacle ID
+        // Draw obstacle ID (smaller font)
         float centerX = (left + right) / 2;
         float centerY = (top + bottom) / 2;
-        canvas.drawText(String.valueOf(obstacle.getId()), centerX, centerY + targetTextPaint.getTextSize() / 3, targetTextPaint);
+        Paint smallIdPaint = new Paint(targetTextPaint);
+        smallIdPaint.setTextSize(cellSize * 0.35f);
+        canvas.drawText(String.valueOf(obstacle.getId()), centerX, centerY + smallIdPaint.getTextSize() / 3, smallIdPaint);
     }
 
     /**
