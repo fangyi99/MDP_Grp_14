@@ -6,6 +6,8 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -45,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -55,8 +58,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     // Menu items for ActionBar
     private MenuItem deviceNameMenuItem;
-    private MenuItem connectionIconMenuItem;
     private String connectedDeviceName = null;
+    private Button connectButton;
 
     // UI Elements - Status displays
     private TextView robotStatusText;
@@ -297,33 +300,30 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
         deviceNameMenuItem = menu.findItem(R.id.deviceNameTxt);
-        connectionIconMenuItem = menu.findItem(R.id.connectionIcon);
-        updateActionBarMenuItem();
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.connectionIcon) {
+        MenuItem item = menu.findItem(R.id.connectBtn);
+        connectButton = Objects.requireNonNull(item.getActionView()).findViewById(R.id.connectBtn);
+        connectButton.setOnClickListener(v -> {
             if (!isConnected) {
                 checkPermissionsAndConnect();
             } else {
                 disconnect();
             }
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
+        });
+        updateActionBarMenuItem();
+        return true;
     }
 
     private void updateActionBarMenuItem() {
-        if (deviceNameMenuItem != null && connectionIconMenuItem != null) {
+        if (deviceNameMenuItem != null) {
             if (isConnected && connectedDeviceName != null) {
                 deviceNameMenuItem.setTitle(connectedDeviceName);
                 deviceNameMenuItem.setVisible(true);
-                connectionIconMenuItem.setIcon(R.drawable.disconnect);
+                connectButton.setText("Disconnect");
+                connectButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#F44336"))); //Red
             } else {
                 deviceNameMenuItem.setVisible(false);
-                connectionIconMenuItem.setIcon(R.drawable.connect);
+                connectButton.setText("Connect");
+                connectButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4CAF50"))); //Green
             }
         }
     }
