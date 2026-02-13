@@ -404,6 +404,27 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         return json;
     }
 
+    private void sendObstacleUpdateToRobot(Obstacle obstacle) throws JSONException {
+        if (!isConnected) {
+            Toast.makeText(this, "Not connected to robot", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        JSONObject message = new JSONObject();
+        message.put("cat", "obstacles");
+
+        JSONObject value = new JSONObject();
+        JSONArray obstaclesArray = new JSONArray();
+        obstaclesArray.put(formatObstacleJSON(obstacle));
+
+        value.put("obstacles", obstaclesArray);
+        value.put("mode", "0");
+        message.put("value", value);
+
+        sendCommand(message.toString());
+        Log.d(TAG, "Sent obstacle #" + obstacle.getId() + " update to robot");
+    }
+
     // ============================================================
     // OBSTACLE DIALOGS
     // ============================================================
@@ -508,6 +529,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
                         arenaMapView.updateObstacle(obstacle);
                         Toast.makeText(this, "Obstacle updated", Toast.LENGTH_SHORT).show();
+                        try {
+                            sendObstacleUpdateToRobot(obstacle);
+                        } catch (JSONException ex) {
+                            Log.e(TAG, "Failed to send obstacle update after edit", ex);
+                        }
                     } catch (NumberFormatException e) {
                         Toast.makeText(this, "Invalid dimensions", Toast.LENGTH_SHORT).show();
                     }
@@ -533,6 +559,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     @Override
     public void onObstaclePositionChanged(Obstacle obstacle) {
         Log.d(TAG, "Obstacle moved: " + obstacle);
+        try {
+            sendObstacleUpdateToRobot(obstacle);
+        } catch (JSONException e) {
+            Log.e(TAG, "Failed to send obstacle update after move", e);
+        }
     }
 
     @Override
