@@ -293,12 +293,22 @@
                         android:backgroundTint="#4CAF50" />
 
                     <Button
-                        android:id="@+id/startRobotButton"
+                        android:id="@+id/exploreButton"
                         android:layout_width="0dp"
                         android:layout_height="36dp"
                         android:layout_weight="1"
                         android:layout_marginEnd="2dp"
-                        android:text="Start Robot"
+                        android:text="Explore"
+                        android:textSize="10sp"
+                        android:backgroundTint="#4CAF50" />
+
+                    <Button
+                        android:id="@+id/fastestPathButton"
+                        android:layout_width="0dp"
+                        android:layout_height="36dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="2dp"
+                        android:text="Fastest Path"
                         android:textSize="10sp"
                         android:backgroundTint="#4CAF50" />
 

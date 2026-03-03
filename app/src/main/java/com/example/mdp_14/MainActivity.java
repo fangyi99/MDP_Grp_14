@@ -86,7 +86,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private Button clearAllButton;
     private Button spawnRobotButton;
     private Button sendObstaclesButton;
-    private Button startRobotButton;
+    private Button exploreButton;
+    private Button fastestPathButton;
     private ToggleButton lockToggle;
 
     // Bluetooth
@@ -108,23 +109,18 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
      * ============================================================
      *
      * Format for sending all obstacles:
-     *   OBSTACLES,<count>
-     *   OBS,<id>,<x>,<y>,<width>,<height>,<target_face>
-     *   OBS,<id>,<x>,<y>,<width>,<height>,<target_face>
-     *   ...
+     *  {
+     *      "cat": "obstacles",
+     *      "value": {
+     *          "obstacles": [{"x": <x>, "y": <y>, "id": <id>, "d": <direction>}],
+     *          "mode": "0"
+     *      }
+     *  }
      *
      * Where:
      *   <id>          = Obstacle number (1, 2, 3, ...)
      *   <x>, <y>      = Grid coordinates (0-19)
-     *   <width>       = Width in grid units
-     *   <height>      = Height in grid units
-     *   <target_face> = N, S, E, W (which face has the target image)
-     *
-     * Example:
-     *   OBSTACLES,3
-     *   OBS,1,5,10,1,1,N
-     *   OBS,2,8,3,2,1,E
-     *   OBS,3,15,15,1,2,S
+     *   <direction>   = 0 : N, 2 : E, 4 : S, 6: W (which face has the target image)
      *
      * ============================================================
      */
@@ -189,7 +185,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         clearAllButton = findViewById(R.id.clearAllButton);
         spawnRobotButton = findViewById(R.id.spawnRobotButton);
         sendObstaclesButton = findViewById(R.id.sendObstaclesButton);
-        startRobotButton = findViewById(R.id.startRobotButton);
+        exploreButton = findViewById(R.id.exploreButton);
+        fastestPathButton = findViewById(R.id.fastestPathButton);
         lockToggle = findViewById(R.id.lockToggle);
     }
 
@@ -270,9 +267,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         });
 
-        startRobotButton.setOnClickListener(v -> {
-            sendCommand("{\"cat\": \"control\", \"value\": \"start\"}");
-        });
+        exploreButton.setOnClickListener(v -> sendCommand("{\"cat\": \"control\", \"value\": \"start\"}"));
+
+        fastestPathButton.setOnClickListener(v -> sendCommand("{\"cat\": \"control\", \"value\": \"start\"}"));
 
         addObstacleButton.setOnClickListener(v -> showAddObstacleDialog());
 
@@ -289,6 +286,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             Obstacle selected = arenaMapView.getSelectedObstacle();
             if (selected != null) {
                 arenaMapView.removeObstacle(selected);
+                try {
+                    sendAllObstaclesToRobot();
+                } catch (JSONException e) {
+                    Log.e(TAG, "Failed to send obstacle update after deletion", e);
+                }
                 Toast.makeText(this, "Obstacle deleted", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(this, "Please select an obstacle first", Toast.LENGTH_SHORT).show();
@@ -331,11 +333,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             if (isConnected && connectedDeviceName != null) {
                 deviceNameMenuItem.setTitle(connectedDeviceName);
                 deviceNameMenuItem.setVisible(true);
-                connectButton.setText("Disconnect");
+                connectButton.setText(R.string.btn_disconnect);
                 connectButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#F44336"))); //Red
             } else {
                 deviceNameMenuItem.setVisible(false);
-                connectButton.setText("Connect");
+                connectButton.setText(R.string.btn_connect);
                 connectButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4CAF50"))); //Green
             }
         }
@@ -404,27 +406,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         return json;
     }
 
-    private void sendObstacleUpdateToRobot(Obstacle obstacle) throws JSONException {
-        if (!isConnected) {
-            Toast.makeText(this, "Not connected to robot", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        JSONObject message = new JSONObject();
-        message.put("cat", "obstacles");
-
-        JSONObject value = new JSONObject();
-        JSONArray obstaclesArray = new JSONArray();
-        obstaclesArray.put(formatObstacleJSON(obstacle));
-
-        value.put("obstacles", obstaclesArray);
-        value.put("mode", "0");
-        message.put("value", value);
-
-        sendCommand(message.toString());
-        Log.d(TAG, "Sent obstacle #" + obstacle.getId() + " update to robot");
-    }
-
     // ============================================================
     // OBSTACLE DIALOGS
     // ============================================================
@@ -433,7 +414,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_edit_obstacle, null);
 
         TextView titleText = dialogView.findViewById(R.id.obstacleIdText);
-        titleText.setText("Add New Obstacle");
+        titleText.setText(R.string.dialog_add_obstacle);
 
         EditText widthInput = dialogView.findViewById(R.id.widthInput);
         EditText heightInput = dialogView.findViewById(R.id.heightInput);
@@ -469,9 +450,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                         arenaMapView.addObstacle(obstacle);
                         arenaMapView.setSelectedObstacle(obstacle);
 
+                        sendAllObstaclesToRobot();
+
                         Toast.makeText(this, "Obstacle added. Drag to position.", Toast.LENGTH_SHORT).show();
                     } catch (NumberFormatException e) {
                         Toast.makeText(this, "Invalid dimensions", Toast.LENGTH_SHORT).show();
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Failed to send obstacle update after creation", e);
                     }
                 })
                 .setNegativeButton("Cancel", null)
@@ -530,7 +515,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                         arenaMapView.updateObstacle(obstacle);
                         Toast.makeText(this, "Obstacle updated", Toast.LENGTH_SHORT).show();
                         try {
-                            sendObstacleUpdateToRobot(obstacle);
+                            sendAllObstaclesToRobot();
                         } catch (JSONException ex) {
                             Log.e(TAG, "Failed to send obstacle update after edit", ex);
                         }
@@ -560,7 +545,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     public void onObstaclePositionChanged(Obstacle obstacle) {
         Log.d(TAG, "Obstacle moved: " + obstacle);
         try {
-            sendObstacleUpdateToRobot(obstacle);
+            sendAllObstaclesToRobot();
         } catch (JSONException e) {
             Log.e(TAG, "Failed to send obstacle update after move", e);
         }
@@ -569,7 +554,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     @Override
     public void onObstacleRemovedByDrag(Obstacle obstacle) {
         Log.d(TAG, "Obstacle removed by drag: " + obstacle);
-        Toast.makeText(this, "Obstacle #" + obstacle.getId() + " removed", Toast.LENGTH_SHORT).show();
+        try {
+            sendAllObstaclesToRobot();
+            Toast.makeText(this, "Obstacle #" + obstacle.getId() + " removed", Toast.LENGTH_SHORT).show();
+        } catch (JSONException e) {
+            Log.e(TAG, "Failed to send obstacle update after removed by drag", e);
+        }
     }
 
     @Override
@@ -754,7 +744,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     private void clearMessages() {
-        receivedText.setText("Waiting for data...");
         Toast.makeText(this, "Messages cleared", Toast.LENGTH_SHORT).show();
     }
 
@@ -805,7 +794,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     private void handleDisconnection() {
         updateConnectionStatus(false, "Disconnected");
-        logMessage("Connection lost. Reconnecting...", "#F44336");
+        logMessage("Device disconnected!", "#F44336");
         Toast.makeText(this, "Device disconnected", Toast.LENGTH_SHORT).show();
 
         bluetoothService.restartServer();
@@ -904,7 +893,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private void disconnect() {
         bluetoothService.stop();
         updateConnectionStatus(false, "Disconnected");
-        logMessage("Disconnected", "#FF9800");
+        logMessage("Device disconnected!", "#FF9800");
         bluetoothService.restartServer();
     }
 
@@ -924,7 +913,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         if (accelerometer != null && isConnected) {
             isTiltControlEnabled = true;
             sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
-            logMessage("Tilt control enabled", "#4CAF50");
+            Toast.makeText(this, "Tilt control enabled", Toast.LENGTH_SHORT).show();
 
             upButton.setEnabled(false);
             downButton.setEnabled(false);
