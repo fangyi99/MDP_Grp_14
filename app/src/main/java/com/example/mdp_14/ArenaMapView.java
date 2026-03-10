@@ -170,20 +170,25 @@ public class ArenaMapView extends View {
     }
 
     private void calculateDimensions() {
+        // Read padding set from XML or code
+        float padTop    = getPaddingTop();
+        float padBottom = getPaddingBottom();
+
         int width = getWidth();
         int height = getHeight();
 
         float labelMarginLeft = 30f;   // For row labels on left
         float labelMarginBottom = 30f; // For column labels at bottom
+
         float availableWidth = width - labelMarginLeft;
-        float availableHeight = height - labelMarginBottom;
+        float availableHeight = height - padTop  - padBottom - labelMarginBottom;
 
         cellSize = Math.min(availableWidth / GRID_SIZE, availableHeight / GRID_SIZE);
 
         float gridWidth = cellSize * GRID_SIZE;
         float gridHeight = cellSize * GRID_SIZE;
         offsetX = labelMarginLeft + (availableWidth - gridWidth) / 2;
-        offsetY = (availableHeight - gridHeight) / 2;
+        offsetY = padTop + (availableHeight - gridHeight) / 2;
 
         targetTextPaint.setTextSize(cellSize * 0.5f);
         gridLabelPaint.setTextSize(cellSize * 0.4f);
@@ -193,7 +198,7 @@ public class ArenaMapView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        canvas.drawColor(Color.WHITE);
+//        canvas.drawColor(Color.WHITE);
         drawGrid(canvas);
 
         // Draw obstacles (skip the one being dragged, we'll draw it separately)

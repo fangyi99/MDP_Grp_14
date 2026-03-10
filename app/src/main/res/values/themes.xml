@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.MDP_14" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.MDP_14" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="android:windowBackground">@color/bg_system</item>
+        <item name="colorPrimary">@color/accent_blue</item>
+        <item name="colorPrimaryVariant">@color/accent_blue</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="android:statusBarColor">@color/bg_system</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
 </resources>
