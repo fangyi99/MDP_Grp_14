@@ -56,6 +56,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private static final String TAG = "MainActivity";
     private static final int REQUEST_BLUETOOTH_PERMISSIONS = 1;
     private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    private static final long MAX_TIME_MILLIS = (1 * 60 + 55) * 1000; //5 minutes 55 seconds
 
     // Menu items for ActionBar
     private MenuItem deviceNameMenuItem;
@@ -102,6 +103,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private long lastTiltCommandTime = 0;
     private static final long TILT_COMMAND_INTERVAL = 500;
     private static final float TILT_THRESHOLD = 3.0f;
+
+    // Timer
+    private TextView timerText;
+    private long startTime = 0;
+    private Handler timerHandler = new Handler();
+    private boolean isTimerRunning = false;
 
     /*
      * ============================================================
@@ -165,6 +172,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         robotStatusText = findViewById(R.id.robotStatusTxt);
         positionText = findViewById(R.id.positionTxt);
         directionText = findViewById(R.id.directionTxt);
+        timerText = findViewById(R.id.timerTxt);
         receivedText = findViewById(R.id.receivedText);
         messageInput = findViewById(R.id.messageInput);
         sendButton = findViewById(R.id.sendBtn);
@@ -267,9 +275,24 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         });
 
-        exploreButton.setOnClickListener(v -> sendCommand("{\"cat\": \"control\", \"value\": \"start\"}"));
+        exploreButton.setOnClickListener(v -> {
+            if (!isTimerRunning) {
+                startTime = System.currentTimeMillis();
+                timerHandler.postDelayed(timerRunnable, 0);
+                isTimerRunning = true;
+            }
+            sendCommand("{\"cat\": \"control\", \"value\": \"start\"}");
+        });
 
-        fastestPathButton.setOnClickListener(v -> sendCommand("{\"cat\": \"control\", \"value\": \"start\"}"));
+        fastestPathButton.setOnClickListener(v -> {
+            if (!isTimerRunning) {
+                startTime = System.currentTimeMillis();
+                timerHandler.postDelayed(timerRunnable, 0);
+                isTimerRunning = true;
+            }
+            sendCommand("{\"cat\": \"control\", \"value\": \"start\"}");
+            //TODO: update button color
+        });
 
         addObstacleButton.setOnClickListener(v -> showAddObstacleDialog());
 
@@ -280,6 +303,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             } else {
                 Toast.makeText(this, "Please select an obstacle first", Toast.LENGTH_SHORT).show();
             }
+            //TODO: update button color
         });
 
         deleteObstacleButton.setOnClickListener(v -> {
@@ -622,6 +646,39 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         }
     };
+
+    // ============================================================
+    // STARTING TIMER
+    // ============================================================
+    private Runnable timerRunnable = new Runnable() {
+        @Override
+        public void run() {
+            long elapsedMillis = System.currentTimeMillis() - startTime;
+
+            // Check if 5:55 minutes reached
+            if (elapsedMillis >= MAX_TIME_MILLIS) {
+                elapsedMillis = MAX_TIME_MILLIS; // Cap at 5 minutes
+                stopTimer();
+                //TODO: toggle task button back to original
+                return; // Stop the runnable
+            }
+
+            int seconds = (int) (elapsedMillis / 1000);
+            int minutes = seconds / 60;
+            seconds = seconds % 60;
+            int millis = (int) (elapsedMillis % 1000) / 10;
+
+            timerText.setText(String.format("%02d:%02d:%02d",
+                    minutes, seconds, millis));
+
+            timerHandler.postDelayed(this, 10); // Update every 10ms
+        }
+    };
+
+    private void stopTimer() {
+        timerHandler.removeCallbacks(timerRunnable);
+        isTimerRunning = false;
+    }
 
     // ============================================================
     // MESSAGE PARSING (C.4, C.9, C.10)
