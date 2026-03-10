@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.MDP_14" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="android:windowBackground">@color/bg_system</item>
-        <item name="colorPrimary">@color/accent_blue</item>
-        <item name="colorPrimaryVariant">@color/accent_blue</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="android:statusBarColor">@color/bg_system</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <!-- Action bar color — deep ink -->
+        <item name="colorPrimary">#0F1B3D</item>
+        <item name="colorPrimaryDark">#080F24</item>
+        <item name="colorAccent">#3D7EFF</item>
+
+        <!-- Window background — sky blue canvas -->
+        <item name="android:windowBackground">#EDF2FF</item>
+
+        <!-- Status bar — near black matching action bar -->
+        <item name="android:statusBarColor">#080F24</item>
     </style>
 </resources>

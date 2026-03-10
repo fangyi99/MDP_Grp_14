@@ -24,7 +24,7 @@
             android:layout_marginEnd="6dp"
             android:orientation="vertical"
             android:gravity="center"
-            android:background="@drawable/bg_card"
+            android:background="@drawable/bg_pill_violet"
             android:elevation="2dp"
             android:padding="6dp">
 
@@ -33,7 +33,7 @@
                 android:layout_height="wrap_content"
                 android:text="STATUS"
                 android:textSize="8sp"
-                android:textColor="@color/text_tertiary"
+                android:textColor="@color/ink_soft"
                 android:letterSpacing="0.05"
                 android:textAllCaps="true"/>
 
@@ -45,7 +45,8 @@
                 android:textSize="11sp"
                 android:textStyle="bold"
                 android:fontFamily="monospace"
-                android:layout_marginTop="2dp"/>
+                android:layout_marginTop="2dp"
+                android:textColor="@color/violet_dark"/>
         </LinearLayout>
 
         <LinearLayout
@@ -55,7 +56,7 @@
             android:layout_marginEnd="6dp"
             android:orientation="vertical"
             android:gravity="center"
-            android:background="@drawable/bg_card"
+            android:background="@drawable/bg_pill_violet"
             android:elevation="2dp"
             android:padding="6dp">
 
@@ -65,7 +66,7 @@
                 android:layout_height="wrap_content"
                 android:text="POSITION"
                 android:textSize="8sp"
-                android:textColor="@color/text_tertiary"
+                android:textColor="@color/ink_soft"
                 android:letterSpacing="0.05"
                 android:textAllCaps="true"/>
 
@@ -75,7 +76,7 @@
                 android:layout_height="wrap_content"
                 android:text="0, 0"
                 android:textSize="11sp"
-
+                android:textColor="@color/violet_dark"
                 android:textStyle="bold"
                 android:fontFamily="monospace"
                 android:layout_marginTop="2dp"/>
@@ -88,7 +89,7 @@
             android:layout_marginEnd="6dp"
             android:orientation="vertical"
             android:gravity="center"
-            android:background="@drawable/bg_card"
+            android:background="@drawable/bg_pill_violet"
             android:elevation="2dp"
             android:padding="6dp">
 
@@ -98,7 +99,7 @@
                 android:layout_height="wrap_content"
                 android:text="DIRECTION"
                 android:textSize="8sp"
-                android:textColor="@color/text_tertiary"
+                android:textColor="@color/ink_soft"
                 android:letterSpacing="0.05"
                 android:textAllCaps="true"/>
 
@@ -107,7 +108,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="North"
-
+                android:textColor="@color/violet_dark"
                 android:textSize="11sp"
                 android:textStyle="bold"
                 android:fontFamily="monospace"
@@ -121,7 +122,7 @@
             android:layout_weight="1"
             android:orientation="vertical"
             android:gravity="center"
-            android:background="@drawable/bg_card"
+            android:background="@drawable/bg_pill_violet"
             android:elevation="2dp"
             android:padding="6dp">
 
@@ -130,7 +131,7 @@
                 android:layout_height="wrap_content"
                 android:text="TIMER"
                 android:textSize="8sp"
-                android:textColor="@color/text_tertiary"
+                android:textColor="@color/ink_soft"
                 android:letterSpacing="0.05"
                 android:textAllCaps="true"/>
 
@@ -140,7 +141,7 @@
                 android:layout_height="wrap_content"
                 android:text="00:00"
                 android:textSize="11sp"
-
+                android:textColor="@color/violet_dark"
                 android:textStyle="bold"
                 android:fontFamily="monospace"
                 android:layout_marginTop="2dp"/>
@@ -168,25 +169,25 @@
             <LinearLayout
                 android:id="@+id/lockPill"
                 android:layout_width="wrap_content"
-                android:layout_height="34dp"
-                android:orientation="horizontal"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_action_blank"
+                android:elevation="2dp"
                 android:gravity="center_vertical"
-                android:background="@drawable/bg_pill"
+                android:orientation="horizontal"
                 android:paddingStart="8dp"
-                android:paddingEnd="12dp"
-                android:elevation="2dp">
+                android:paddingEnd="12dp">
 
                 <ToggleButton
                     android:id="@+id/lockToggle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textOn="Locked"
-                    android:textOff="Unlocked"
-                    android:textSize="11sp"
-                    android:textColor="@color/accent_orange"
-                    android:textStyle="bold"
                     android:background="@null"
-                    android:checked="false"/>
+                    android:checked="false"
+                    android:textColor="@color/gold_dark"
+                    android:textOff="Unlocked"
+                    android:textOn="Locked"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
             <View
@@ -202,7 +203,7 @@
                 android:textSize="12sp"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
-                android:background="@drawable/bg_pill_blue"
+                android:background="@drawable/bg_action_black"
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
                 android:elevation="2dp"
@@ -236,7 +237,7 @@
                         android:text="MAP"
                         android:textSize="9sp"
                         android:textStyle="bold"
-                        android:textColor="@color/text_tertiary"
+                        android:textColor="@color/ink_soft"
                         android:layout_marginEnd="4dp"/>
 
                     <Button
@@ -247,9 +248,9 @@
                         android:layout_marginEnd="5dp"
                         android:text="Add"
                         android:textSize="11sp"
-                        android:textColor="@color/accent_blue"
+                        android:textColor="@color/sky"
                         android:textStyle="bold"
-                        android:background="@drawable/bg_seg_selected"
+                        android:background="@drawable/bg_map_sky"
                         android:elevation="1dp"
                         android:stateListAnimator="@null"/>
 
@@ -261,8 +262,8 @@
                         android:layout_marginEnd="5dp"
                         android:text="Edit"
                         android:textSize="11sp"
-                        android:textColor="@color/text_secondary"
-                        android:background="@drawable/bg_seg_selected"
+                        android:textColor="@color/sky"
+                        android:background="@drawable/bg_map_sky"
                         android:elevation="1dp"
                         android:stateListAnimator="@null"/>
 
@@ -274,8 +275,8 @@
                         android:layout_marginEnd="5dp"
                         android:text="Delete"
                         android:textSize="11sp"
-                        android:textColor="@color/text_secondary"
-                        android:background="@drawable/bg_seg_selected"
+                        android:textColor="@color/coral"
+                        android:background="@drawable/bg_map_coral"
                         android:elevation="1dp"
                         android:stateListAnimator="@null"/>
 
@@ -286,8 +287,8 @@
                         android:layout_weight="1"
                         android:text="Clear"
                         android:textSize="11sp"
-                        android:textColor="@color/accent_red"
-                        android:background="@drawable/bg_seg_selected"
+                        android:textColor="@color/coral"
+                        android:background="@drawable/bg_map_coral"
                         android:elevation="1dp"
                         android:stateListAnimator="@null"/>
                 </LinearLayout>
@@ -306,7 +307,7 @@
                         android:text="Actions"
                         android:textSize="9sp"
                         android:textStyle="bold"
-                        android:textColor="@color/text_tertiary"
+                        android:textColor="@color/ink_soft"
                         android:textAllCaps="true"
                         android:letterSpacing="0.05"/>
 
@@ -320,7 +321,7 @@
                         android:textSize="11sp"
                         android:textColor="#FFFFFF"
                         android:textStyle="bold"
-                        android:background="@drawable/bg_action_primary"
+                        android:background="@drawable/bg_action_black"
                         android:elevation="2dp"
                         android:stateListAnimator="@null"/>
 
@@ -332,9 +333,9 @@
                         android:layout_marginEnd="6dp"
                         android:text="Explore"
                         android:textSize="11sp"
-                        android:textColor="@color/accent_green"
+                        android:textColor="@color/btn_action_run_bg"
                         android:textStyle="bold"
-                        android:background="@drawable/bg_action_green"
+                        android:background="@drawable/bg_action_mint"
                         android:stateListAnimator="@null"/>
 
                     <Button
@@ -344,9 +345,9 @@
                         android:layout_weight="1"
                         android:text="Fastest"
                         android:textSize="11sp"
-                        android:textColor="@color/accent_green"
+                        android:textColor="@color/btn_action_run_bg"
                         android:textStyle="bold"
-                        android:background="@drawable/bg_action_green"
+                        android:background="@drawable/bg_action_mint"
                         android:stateListAnimator="@null"/>
 
                 </LinearLayout>
@@ -357,7 +358,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:background="@color/bg_card"
+        android:background="@color/bg_system"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
         android:paddingTop="10dp"
@@ -386,7 +387,7 @@
                     android:text="Message Log"
                     android:textSize="11sp"
                     android:textStyle="bold"
-                    android:textColor="@color/text_primary"/>
+                    android:textColor="@color/ink"/>
 
                 <Button
                     android:id="@+id/clearMessagesBtn"
@@ -394,7 +395,7 @@
                     android:layout_height="24dp"
                     android:text="Clear"
                     android:textSize="11sp"
-                    android:textColor="@color/accent_blue"
+                    android:textColor="@color/sky"
                     android:background="@null"
                     android:padding="0dp"
                     android:stateListAnimator="@null"/>
@@ -415,7 +416,7 @@
                     android:text="Waiting for data..."
                     android:textSize="10sp"
                     android:fontFamily="monospace"
-                    android:textColor="@color/text_secondary"
+                    android:textColor="@color/ink_mid"
                     android:lineSpacingMultiplier="1.4"/>
             </ScrollView>
 
@@ -424,7 +425,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="38dp"
                 android:orientation="horizontal"
-                android:background="@drawable/bg_input_field"
+                android:background="@drawable/bg_card_lg"
                 android:gravity="center_vertical"
                 android:paddingStart="12dp"
                 android:paddingEnd="5dp"
@@ -439,7 +440,7 @@
                     android:hint="Message…"
                     android:inputType="text"
                     android:textSize="12sp"
-                    android:textColor="@color/text_primary"
+                    android:textColor="@color/ink_soft"
                     android:background="@null"/>
 
                 <ImageButton
@@ -449,7 +450,7 @@
                     android:src="@android:drawable/ic_menu_send"
                     android:background="@drawable/bg_send_btn"
                     android:enabled="false"
-                    android:padding="6dp"
+                    android:padding="18dp"
                     android:contentDescription="Send"
                     app:tint="#FFFFFF" />
             </LinearLayout>
@@ -475,7 +476,7 @@
                     android:layout_height="wrap_content"
                     android:text="Tilt"
                     android:textSize="10sp"
-                    android:textColor="@color/text_tertiary"
+                    android:textColor="@color/ink_mid"
                     android:layout_marginEnd="4dp"/>
 
                 <Switch
@@ -497,7 +498,7 @@
                     android:layout_height="64dp"
                     android:text="↑"
                     android:textSize="22sp"
-                    android:textColor="@color/text_primary"
+                    android:textColor="@color/ink"
                     android:background="@drawable/bg_dpad"
                     android:enabled="false"
                     android:elevation="1dp"
@@ -517,7 +518,7 @@
                         android:layout_height="64dp"
                         android:text="←"
                         android:textSize="22sp"
-                        android:textColor="@color/text_primary"
+                        android:textColor="@color/ink"
                         android:background="@drawable/bg_dpad"
                         android:enabled="false"
                         android:elevation="1dp"
@@ -530,7 +531,7 @@
                         android:layout_height="64dp"
                         android:text="↓"
                         android:textSize="22sp"
-                        android:textColor="@color/text_primary"
+                        android:textColor="@color/ink"
                         android:background="@drawable/bg_dpad"
                         android:enabled="false"
                         android:elevation="1dp"
@@ -543,7 +544,7 @@
                         android:layout_height="64dp"
                         android:text="→"
                         android:textSize="22sp"
-                        android:textColor="@color/text_primary"
+                        android:textColor="@color/ink"
                         android:background="@drawable/bg_dpad"
                         android:enabled="false"
                         android:elevation="1dp"
