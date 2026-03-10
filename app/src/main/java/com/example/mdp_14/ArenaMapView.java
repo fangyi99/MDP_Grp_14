@@ -82,7 +82,7 @@ public class ArenaMapView extends View {
     private void init() {
         // Grid lines paint
         gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        gridPaint.setColor(Color.LTGRAY);
+        gridPaint.setColor(Color.parseColor("#403D7EFF"));
         gridPaint.setStrokeWidth(1f);
         gridPaint.setStyle(Paint.Style.STROKE);
 
@@ -108,24 +108,24 @@ public class ArenaMapView extends View {
 
         // Grid label paint
         gridLabelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        gridLabelPaint.setColor(Color.DKGRAY);
+        gridLabelPaint.setColor(Color.parseColor("#9BA5C0"));
         gridLabelPaint.setTextSize(24f);
         gridLabelPaint.setTextAlign(Paint.Align.CENTER);
 
         // Selected highlight
         selectedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        selectedPaint.setColor(Color.BLUE);
+        selectedPaint.setColor(Color.parseColor("#3D7EFF"));
         selectedPaint.setStrokeWidth(4f);
         selectedPaint.setStyle(Paint.Style.STROKE);
 
         // Robot body paint
         robotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        robotPaint.setColor(Color.parseColor("#4CAF50")); // Green
+        robotPaint.setColor(Color.parseColor("#1C00C9A0")); // Green
         robotPaint.setStyle(Paint.Style.FILL);
 
         // Robot direction indicator paint
         robotDirectionPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        robotDirectionPaint.setColor(Color.parseColor("#1B5E20")); // Dark green
+        robotDirectionPaint.setColor(Color.parseColor("#00C9A0")); // Dark green
         robotDirectionPaint.setStyle(Paint.Style.FILL);
 
         // Gesture detector for long press
@@ -170,20 +170,25 @@ public class ArenaMapView extends View {
     }
 
     private void calculateDimensions() {
+        // Read padding set from XML or code
+        float padTop    = getPaddingTop();
+        float padBottom = getPaddingBottom();
+
         int width = getWidth();
         int height = getHeight();
 
         float labelMarginLeft = 30f;   // For row labels on left
         float labelMarginBottom = 30f; // For column labels at bottom
+
         float availableWidth = width - labelMarginLeft;
-        float availableHeight = height - labelMarginBottom;
+        float availableHeight = height - padTop  - padBottom - labelMarginBottom;
 
         cellSize = Math.min(availableWidth / GRID_SIZE, availableHeight / GRID_SIZE);
 
         float gridWidth = cellSize * GRID_SIZE;
         float gridHeight = cellSize * GRID_SIZE;
         offsetX = labelMarginLeft + (availableWidth - gridWidth) / 2;
-        offsetY = (availableHeight - gridHeight) / 2;
+        offsetY = padTop + (availableHeight - gridHeight) / 2;
 
         targetTextPaint.setTextSize(cellSize * 0.5f);
         gridLabelPaint.setTextSize(cellSize * 0.4f);
@@ -193,7 +198,21 @@ public class ArenaMapView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        canvas.drawColor(Color.WHITE);
+        // Draw inset map background with rounded corners
+        Paint mapBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mapBgPaint.setColor(Color.parseColor("#E8EFFE"));
+        mapBgPaint.setStyle(Paint.Style.FILL);
+
+        RectF mapRect = new RectF(
+                offsetX,
+                offsetY,
+                offsetX + GRID_SIZE * cellSize,
+                offsetY + GRID_SIZE * cellSize
+        );
+        float cornerRadius = 12f; // dp — adjust to taste
+        canvas.drawRoundRect(mapRect, cornerRadius, cornerRadius, mapBgPaint);
+
+//        canvas.drawColor(Color.WHITE);
         drawGrid(canvas);
 
         // Draw obstacles (skip the one being dragged, we'll draw it separately)
