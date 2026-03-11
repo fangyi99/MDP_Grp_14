@@ -87,6 +87,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private Button clearAllButton;
     private Button spawnRobotButton;
     private Button sendObstaclesButton;
+    private Button stopButton;
     private Button exploreButton;
     private Button fastestPathButton;
     private ToggleButton lockToggle;
@@ -193,6 +194,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         clearAllButton = findViewById(R.id.clearAllButton);
         spawnRobotButton = findViewById(R.id.spawnRobotButton);
         sendObstaclesButton = findViewById(R.id.sendObstaclesButton);
+        stopButton = findViewById(R.id.stopButton);
         exploreButton = findViewById(R.id.exploreButton);
         fastestPathButton = findViewById(R.id.fastestPathButton);
         lockToggle = findViewById(R.id.lockToggle);
@@ -278,6 +280,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             } catch (JSONException e) {
                 throw new RuntimeException(e);
             }
+        });
+
+        stopButton.setOnClickListener(v -> {
+            stopRobot();
+            resetTimer();
         });
 
         exploreButton.setOnClickListener(v -> {
@@ -659,10 +666,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             if (elapsedMillis >= MAX_TIME_MILLIS) {
                 elapsedMillis = MAX_TIME_MILLIS; // Cap at 5 minutes
                 stopRobot();
-                exploreButton.setBackground(getDrawable(R.drawable.bg_action_mint));
-                exploreButton.setTextColor(getColor(R.color.mint));
-                fastestPathButton.setBackground(getDrawable(R.drawable.bg_action_mint));
-                fastestPathButton.setTextColor(getColor(R.color.mint));
                 return; // Stop the runnable
             }
 
@@ -681,6 +684,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private void stopTimer() {
         timerHandler.removeCallbacks(timerRunnable);
         isTimerRunning = false;
+    }
+
+    private void resetTimer() {
+        timerText.setText("00:00:00");
     }
 
     // ============================================================
@@ -705,8 +712,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
      */
     private void handleStatusUpdate(String message) {
         try {
+//            JSONObject json = new JSONObject(message);
+//            String statusMsg = json.getString("status").toUpperCase();
+
             JSONObject json = new JSONObject(message);
-            String statusMsg = json.getString("status").toUpperCase();
+
+            JSONObject value = json.getJSONObject("value");
+            String statusMsg = value.getString("robot_status");
             robotStatusText.setText(statusMsg);
         } catch (JSONException e) {
             Log.d(TAG, "Not a JSON status message: " + message);
@@ -977,6 +989,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private void stopRobot(){
         stopTimer();
         sendCommand("{\"cat\": \"control\", \"value\": \"stop\"}");
+
+        //update ui
+        exploreButton.setBackground(getDrawable(R.drawable.bg_action_mint));
+        exploreButton.setTextColor(getColor(R.color.mint));
+        fastestPathButton.setBackground(getDrawable(R.drawable.bg_action_mint));
+        fastestPathButton.setTextColor(getColor(R.color.mint));
     }
 
     // ============================================================
