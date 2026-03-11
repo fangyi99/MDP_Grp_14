@@ -14,12 +14,11 @@
         android:orientation="horizontal"
         android:padding="12dp"
         android:paddingTop="14dp"
-        android:layout_marginTop="40dp"
         android:gravity="center_vertical">
 
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="46dp"
             android:layout_weight="1"
             android:layout_marginEnd="6dp"
             android:orientation="vertical"
@@ -51,7 +50,7 @@
 
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="46dp"
             android:layout_weight="1"
             android:layout_marginEnd="6dp"
             android:orientation="vertical"
@@ -74,7 +73,7 @@
                 android:id="@+id/positionTxt"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0, 0"
+                android:text="-"
                 android:textSize="11sp"
                 android:textColor="@color/violet_dark"
                 android:textStyle="bold"
@@ -84,7 +83,7 @@
 
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="46dp"
             android:layout_weight="1"
             android:layout_marginEnd="6dp"
             android:orientation="vertical"
@@ -107,7 +106,7 @@
                 android:id="@+id/directionTxt"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="North"
+                android:text="-"
                 android:textColor="@color/violet_dark"
                 android:textSize="11sp"
                 android:textStyle="bold"
@@ -118,7 +117,7 @@
 
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="56dp"
+            android:layout_height="46dp"
             android:layout_weight="1"
             android:orientation="vertical"
             android:gravity="center"
@@ -139,7 +138,7 @@
                 android:id="@+id/timerTxt"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="00:00"
+                android:text="00:00:00"
                 android:textSize="11sp"
                 android:textColor="@color/violet_dark"
                 android:textStyle="bold"
@@ -217,8 +216,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
                 android:layout_weight="1"
-                android:paddingTop="20dp"
-                android:paddingBottom="20dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp"
                 android:layout_marginBottom="10dp"
                 android:background="@drawable/bg_card_lg"
                 android:elevation="2dp"/>
@@ -243,7 +242,7 @@
                     <Button
                         android:id="@+id/addObstacleButton"
                         android:layout_width="0dp"
-                        android:layout_height="36dp"
+                        android:layout_height="34dp"
                         android:layout_weight="1"
                         android:layout_marginEnd="5dp"
                         android:text="Add"
@@ -257,7 +256,7 @@
                     <Button
                         android:id="@+id/editObstacleButton"
                         android:layout_width="0dp"
-                        android:layout_height="36dp"
+                        android:layout_height="34dp"
                         android:layout_weight="1"
                         android:layout_marginEnd="5dp"
                         android:text="Edit"
@@ -270,7 +269,7 @@
                     <Button
                         android:id="@+id/deleteObstacleButton"
                         android:layout_width="0dp"
-                        android:layout_height="36dp"
+                        android:layout_height="34dp"
                         android:layout_weight="1"
                         android:layout_marginEnd="5dp"
                         android:text="Delete"
@@ -283,7 +282,7 @@
                     <Button
                         android:id="@+id/clearAllButton"
                         android:layout_width="0dp"
-                        android:layout_height="36dp"
+                        android:layout_height="34dp"
                         android:layout_weight="1"
                         android:text="Clear"
                         android:textSize="11sp"
@@ -314,7 +313,7 @@
                     <Button
                         android:id="@+id/sendObstaclesButton"
                         android:layout_width="0dp"
-                        android:layout_height="36dp"
+                        android:layout_height="34dp"
                         android:layout_weight="1"
                         android:layout_marginEnd="6dp"
                         android:text="Send"
@@ -328,7 +327,7 @@
                     <Button
                         android:id="@+id/exploreButton"
                         android:layout_width="0dp"
-                        android:layout_height="36dp"
+                        android:layout_height="34dp"
                         android:layout_weight="1"
                         android:layout_marginEnd="6dp"
                         android:text="Explore"
@@ -341,7 +340,7 @@
                     <Button
                         android:id="@+id/fastestPathButton"
                         android:layout_width="0dp"
-                        android:layout_height="36dp"
+                        android:layout_height="34dp"
                         android:layout_weight="1"
                         android:text="Fastest"
                         android:textSize="11sp"
@@ -440,7 +439,7 @@
                     android:hint="Message…"
                     android:inputType="text"
                     android:textSize="12sp"
-                    android:textColor="@color/ink_soft"
+                    android:textColor="@color/ink"
                     android:background="@null"/>
 
                 <ImageButton

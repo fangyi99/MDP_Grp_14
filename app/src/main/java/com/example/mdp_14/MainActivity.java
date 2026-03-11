@@ -56,7 +56,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private static final String TAG = "MainActivity";
     private static final int REQUEST_BLUETOOTH_PERMISSIONS = 1;
     private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-    private static final long MAX_TIME_MILLIS = (1 * 60 + 55) * 1000; //5 minutes 55 seconds
+    private static final long MAX_TIME_MILLIS = (5 * 60 + 55) * 1000; //5 minutes 55 seconds
 
     // Menu items for ActionBar
     private MenuItem deviceNameMenuItem;
@@ -252,16 +252,21 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                         .setMessage("Robot already exists. What would you like to do?")
                         .setPositiveButton("Reset Position", (dialog, which) -> {
                             arenaMapView.spawnRobot();
+                            Robot robot = arenaMapView.getRobot();
+                            onRobotPositionChanged(robot);
                             Toast.makeText(this, "Robot reset to start position", Toast.LENGTH_SHORT).show();
                         })
                         .setNegativeButton("Remove", (dialog, which) -> {
                             arenaMapView.removeRobot();
+                            onRobotPositionChanged(null);
                             Toast.makeText(this, "Robot removed", Toast.LENGTH_SHORT).show();
                         })
                         .setNeutralButton("Cancel", null)
                         .show();
             } else {
                 arenaMapView.spawnRobot();
+                Robot robot = arenaMapView.getRobot();
+                onRobotPositionChanged(robot);
                 Toast.makeText(this, "Robot spawned at bottom-left. Drag to position.", Toast.LENGTH_SHORT).show();
             }
         });
@@ -276,22 +281,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         });
 
         exploreButton.setOnClickListener(v -> {
-            if (!isTimerRunning) {
-                startTime = System.currentTimeMillis();
-                timerHandler.postDelayed(timerRunnable, 0);
-                isTimerRunning = true;
-            }
-            sendCommand("{\"cat\": \"control\", \"value\": \"start\"}");
+            startRobot();
+            exploreButton.setBackground(getDrawable(R.drawable.bg_action_mint_pressed));
+            exploreButton.setTextColor(getColor(R.color.gold));
         });
 
         fastestPathButton.setOnClickListener(v -> {
-            if (!isTimerRunning) {
-                startTime = System.currentTimeMillis();
-                timerHandler.postDelayed(timerRunnable, 0);
-                isTimerRunning = true;
-            }
-            sendCommand("{\"cat\": \"control\", \"value\": \"start\"}");
-            //TODO: update button color
+            startRobot();
+            fastestPathButton.setBackground(getDrawable(R.drawable.bg_action_mint_pressed));
+            fastestPathButton.setTextColor(getColor(R.color.gold));
         });
 
         addObstacleButton.setOnClickListener(v -> showAddObstacleDialog());
@@ -303,7 +301,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             } else {
                 Toast.makeText(this, "Please select an obstacle first", Toast.LENGTH_SHORT).show();
             }
-            //TODO: update button color
         });
 
         deleteObstacleButton.setOnClickListener(v -> {
@@ -328,6 +325,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     .setPositiveButton("Yes", (dialog, which) -> {
                         arenaMapView.clearObstacles();
                         arenaMapView.removeRobot();
+                        onRobotPositionChanged(null);
                         Toast.makeText(this, "All cleared", Toast.LENGTH_SHORT).show();
                     })
                     .setNegativeButton("No", null)
@@ -400,7 +398,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         message.put("value", value);
 
         sendCommand(message.toString());
-
         Toast.makeText(this, "Sent " + obstacles.size() + " obstacle(s) to robot", Toast.LENGTH_SHORT).show();
         Log.d(TAG, "Sent " + obstacles.size() + " obstacles to robot");
     }
@@ -588,11 +585,14 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     public void onRobotPositionChanged(Robot robot) {
-        Log.d(TAG, "Robot moved: " + robot);
+        Log.d("ROBOT", "Robot moved: " + robot);
         // Update position and direction displays
         if (robot != null) {
             positionText.setText(robot.getGridX() + "," + robot.getGridY());
             directionText.setText(robot.getFacing().name());
+        } else {
+            positionText.setText("-");
+            directionText.setText("-");
         }
     }
 
@@ -658,8 +658,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             // Check if 5:55 minutes reached
             if (elapsedMillis >= MAX_TIME_MILLIS) {
                 elapsedMillis = MAX_TIME_MILLIS; // Cap at 5 minutes
-                stopTimer();
-                //TODO: toggle task button back to original
+                stopRobot();
+                exploreButton.setBackground(getDrawable(R.drawable.bg_action_mint));
+                exploreButton.setTextColor(getColor(R.color.mint));
+                fastestPathButton.setBackground(getDrawable(R.drawable.bg_action_mint));
+                fastestPathButton.setTextColor(getColor(R.color.mint));
                 return; // Stop the runnable
             }
 
@@ -960,6 +963,20 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         } else {
             Log.d(TAG, "Cannot send - not connected: " + command);
         }
+    }
+
+    private void startRobot(){
+        if (!isTimerRunning) {
+            startTime = System.currentTimeMillis();
+            timerHandler.postDelayed(timerRunnable, 0);
+            isTimerRunning = true;
+        }
+        sendCommand("{\"cat\": \"control\", \"value\": \"start\"}");
+    }
+
+    private void stopRobot(){
+        stopTimer();
+        sendCommand("{\"cat\": \"control\", \"value\": \"stop\"}");
     }
 
     // ============================================================

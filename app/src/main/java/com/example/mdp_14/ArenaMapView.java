@@ -120,12 +120,12 @@ public class ArenaMapView extends View {
 
         // Robot body paint
         robotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        robotPaint.setColor(Color.parseColor("#1C00C9A0")); // Green
+        robotPaint.setColor(Color.parseColor("#00C9A0")); // Green
         robotPaint.setStyle(Paint.Style.FILL);
 
         // Robot direction indicator paint
         robotDirectionPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        robotDirectionPaint.setColor(Color.parseColor("#00C9A0")); // Dark green
+        robotDirectionPaint.setColor(Color.parseColor("#007A62")); // Dark green
         robotDirectionPaint.setStyle(Paint.Style.FILL);
 
         // Gesture detector for long press
