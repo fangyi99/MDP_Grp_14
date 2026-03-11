@@ -34,6 +34,8 @@ public class ArenaMapView extends View {
     private Paint selectedPaint;
     private Paint robotPaint;
     private Paint robotDirectionPaint;
+    private Paint tooltipBgPaint;
+    private Paint tooltipTextPaint;
 
     // Data
     private List<Obstacle> obstacles = new ArrayList<>();
@@ -117,6 +119,18 @@ public class ArenaMapView extends View {
         selectedPaint.setColor(Color.parseColor("#3D7EFF"));
         selectedPaint.setStrokeWidth(4f);
         selectedPaint.setStyle(Paint.Style.STROKE);
+
+        // Tooltip paint
+        tooltipBgPaint = new Paint();
+        tooltipBgPaint.setColor(Color.parseColor("#DD000000"));
+        tooltipBgPaint.setStyle(Paint.Style.FILL);
+        tooltipBgPaint.setAntiAlias(true);
+
+        tooltipTextPaint = new Paint();
+        tooltipTextPaint.setColor(Color.WHITE);
+        tooltipTextPaint.setTextSize(50);
+        tooltipTextPaint.setTextAlign(Paint.Align.CENTER);
+        tooltipTextPaint.setAntiAlias(true);
 
         // Robot body paint
         robotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -328,6 +342,32 @@ public class ArenaMapView extends View {
         Paint smallIdPaint = new Paint(targetTextPaint);
         smallIdPaint.setTextSize(cellSize * 0.35f);
         canvas.drawText(String.valueOf(obstacle.getId()), centerX, centerY + smallIdPaint.getTextSize() / 3, smallIdPaint);
+
+        if (!isOutsideGrid) {
+            drawCoordinateTooltip(canvas, obstacle, centerX, top);
+        }
+    }
+
+    private void drawCoordinateTooltip(Canvas canvas, Obstacle obstacle, float centerX, float obstacleTop) {
+        String coordText = "(" + obstacle.getGridX() + "," + obstacle.getGridY() + ")";
+
+        float textWidth = tooltipTextPaint.measureText(coordText);
+        float paddingVertical = 20;
+        float tooltipWidth = textWidth + cellSize * 0.8f;
+        float tooltipHeight = tooltipTextPaint.getTextSize() + (paddingVertical * 2);
+
+        float tooltipX = centerX - tooltipWidth / 2;
+        float tooltipY = obstacleTop - tooltipHeight - cellSize * 0.3f;
+
+        RectF tooltipRect = new RectF(tooltipX, tooltipY, tooltipX + tooltipWidth, tooltipY + tooltipHeight);
+        canvas.drawRoundRect(tooltipRect, cellSize * 0.2f, cellSize * 0.2f, tooltipBgPaint);
+
+        // Draw text at vertical center of tooltip
+        float textCenterY = tooltipY + tooltipHeight / 2;
+        Paint.FontMetrics fm = tooltipTextPaint.getFontMetrics();
+        float textY = textCenterY - (fm.descent + fm.ascent) / 2;
+
+        canvas.drawText(coordText, centerX, textY, tooltipTextPaint);
     }
 
     /**
