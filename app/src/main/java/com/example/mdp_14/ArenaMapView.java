@@ -1,10 +1,13 @@
 package com.example.mdp_14;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
@@ -26,6 +29,8 @@ public class ArenaMapView extends View {
 
     // Paints
     private Paint gridPaint;
+    private Bitmap robotBitmap;
+    private Paint bitmapPaint;
     private Paint obstaclePaint;
     private Paint obstacleDeletePaint;  // For drag-to-delete visual feedback
     private Paint targetIndicatorPaint;
@@ -87,6 +92,12 @@ public class ArenaMapView extends View {
         gridPaint.setColor(Color.parseColor("#403D7EFF"));
         gridPaint.setStrokeWidth(1f);
         gridPaint.setStyle(Paint.Style.STROKE);
+
+        // Load the PNG from drawable
+        robotBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.robot_car);
+        bitmapPaint = new Paint();
+        bitmapPaint.setAntiAlias(true);
+        bitmapPaint.setFilterBitmap(true); // Smooth scaling
 
         // Obstacle fill paint
         obstaclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -394,46 +405,41 @@ public class ArenaMapView extends View {
     }
 
     private void drawRobot(Canvas canvas) {
+        if (robot == null || robotBitmap == null) return;
+
         float left = offsetX + robot.getGridX() * cellSize;
         // Flip Y: gridY=0 at bottom
         float top = offsetY + (GRID_SIZE - robot.getGridY() - Robot.SIZE) * cellSize;
-        float right = left + Robot.SIZE * cellSize;
-        float bottom = top + Robot.SIZE * cellSize;
+        float size = Robot.SIZE * cellSize;
 
-        // Draw robot body (green square)
-        RectF rect = new RectF(left + 3, top + 3, right - 3, bottom - 3);
-        canvas.drawRect(rect, robotPaint);
+        // Save canvas state for rotation
+        canvas.save();
 
-        // Draw direction triangle
-        float centerX = (left + right) / 2;
-        float centerY = (top + bottom) / 2;
-        float triangleSize = cellSize * 0.6f;
+        // Calculate center point for rotation
+        float centerX = left + size / 2;
+        float centerY = top + size / 2;
 
-        Path triangle = new Path();
-        switch (robot.getFacing()) {
-            case NORTH:
-                triangle.moveTo(centerX, top + 6);                          // Top point
-                triangle.lineTo(centerX - triangleSize / 2, centerY);       // Bottom left
-                triangle.lineTo(centerX + triangleSize / 2, centerY);       // Bottom right
-                break;
-            case SOUTH:
-                triangle.moveTo(centerX, bottom - 6);                       // Bottom point
-                triangle.lineTo(centerX - triangleSize / 2, centerY);       // Top left
-                triangle.lineTo(centerX + triangleSize / 2, centerY);       // Top right
-                break;
-            case EAST:
-                triangle.moveTo(right - 6, centerY);                        // Right point
-                triangle.lineTo(centerX, centerY - triangleSize / 2);       // Top left
-                triangle.lineTo(centerX, centerY + triangleSize / 2);       // Bottom left
-                break;
-            case WEST:
-                triangle.moveTo(left + 6, centerY);                         // Left point
-                triangle.lineTo(centerX, centerY - triangleSize / 2);       // Top right
-                triangle.lineTo(centerX, centerY + triangleSize / 2);       // Bottom right
-                break;
+        // Rotate based on direction
+        float rotation = getRotationAngle(robot.getFacing());
+        canvas.rotate(rotation, centerX, centerY);
+
+        // Draw the bitmap (with small padding like your original rect)
+        Rect srcRect = new Rect(0, 0, robotBitmap.getWidth(), robotBitmap.getHeight());
+        RectF destRect = new RectF(left + 3, top + 3, left + size - 3, top + size - 3);
+        canvas.drawBitmap(robotBitmap, srcRect, destRect, bitmapPaint);
+
+        // Restore canvas state
+        canvas.restore();
+    }
+
+    private float getRotationAngle(Robot.Direction direction) {
+        switch (direction) {
+            case NORTH: return 0f;
+            case EAST: return 90f;
+            case SOUTH: return 180f;
+            case WEST: return 270f;
+            default: return 0f;
         }
-        triangle.close();
-        canvas.drawPath(triangle, robotDirectionPaint);
     }
 
     @Override
