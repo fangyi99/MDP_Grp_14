@@ -128,7 +128,7 @@ public class ArenaMapView extends View {
 
         tooltipTextPaint = new Paint();
         tooltipTextPaint.setColor(Color.WHITE);
-        tooltipTextPaint.setTextSize(50);
+        tooltipTextPaint.setTextSize(18);
         tooltipTextPaint.setTextAlign(Paint.Align.CENTER);
         tooltipTextPaint.setAntiAlias(true);
 

@@ -275,10 +275,25 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         // Send obstacles button (C.6 & C.7)
         sendObstaclesButton.setOnClickListener(v -> {
+            List<Obstacle> obstacles = arenaMapView.getObstacles();
+
+            if (obstacles.isEmpty()) {
+                Toast.makeText(this, "No obstacles on the map", Toast.LENGTH_SHORT).show();
+                return;
+            }
             try {
-                sendAllObstaclesToRobot();
+                JSONObject message = buildObstaclesJSON(obstacles);
+                String jsonString = message.toString(2); // Pretty print
+
+                new AlertDialog.Builder(this)
+                        .setTitle("Obstacles JSON")
+                        .setMessage(jsonString)
+                        .setPositiveButton("OK", null)
+                        .show();
             } catch (JSONException e) {
-                throw new RuntimeException(e);
+                Log.e(TAG, "Error creating JSON", e);
+                Toast.makeText(this, "Error creating JSON", Toast.LENGTH_SHORT).show();
+
             }
         });
 
@@ -376,20 +391,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     // C.6 & C.7: OBSTACLE BLUETOOTH TRANSMISSION
     // ============================================================
 
-    private void sendAllObstaclesToRobot() throws JSONException {
-        List<Obstacle> obstacles = arenaMapView.getObstacles();
-
-        if (!isConnected) {
-            Toast.makeText(this, "Not connected to robot", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (obstacles.isEmpty()) {
-            Toast.makeText(this, "No obstacles to send", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // Build JSON object with all obstacles
+    private JSONObject buildObstaclesJSON(List<Obstacle> obstacles) throws JSONException {
         JSONObject message = new JSONObject();
         message.put("cat", "obstacles");
 
@@ -404,6 +406,24 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         value.put("mode", "0");
         message.put("value", value);
 
+        return message;
+    }
+
+    private void sendAllObstaclesToRobot() throws JSONException {
+        List<Obstacle> obstacles = arenaMapView.getObstacles();
+
+        if (!isConnected) {
+            Toast.makeText(this, "Not connected to robot", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (obstacles.isEmpty()) {
+            Toast.makeText(this, "No obstacles to send", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Build JSON object with all obstacles
+        JSONObject message = buildObstaclesJSON(obstacles);
         sendCommand(message.toString());
         Toast.makeText(this, "Sent " + obstacles.size() + " obstacle(s) to robot", Toast.LENGTH_SHORT).show();
         Log.d(TAG, "Sent " + obstacles.size() + " obstacles to robot");
