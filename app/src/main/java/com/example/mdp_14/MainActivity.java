@@ -797,16 +797,18 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             JSONObject json = new JSONObject(message);
 
             JSONObject value = json.getJSONObject("value");
-            String targetId = value.getString("image_id");
+            String receivedId  = value.getString("image_id");
             int obstacleNumber = value.getInt("obstacle_id");
+
+            String displayId = ImageIdMapper.mapImageId(receivedId);
 
             Obstacle obstacle = findObstacleById(obstacleNumber);
             if (obstacle != null) {
-                obstacle.setRecognizedTargetId(targetId);
+                obstacle.setRecognizedTargetId(displayId);
                 arenaMapView.updateObstacle(obstacle);
-                Toast.makeText(this, "Target " + targetId + " identified on Obstacle #" + obstacleNumber,
+                Toast.makeText(this, "Target " + displayId + " identified on Obstacle #" + obstacleNumber,
                         Toast.LENGTH_SHORT).show();
-                Log.d(TAG, "Updated Obstacle #" + obstacleNumber + " with Target ID: " + targetId);
+                Log.d(TAG, "Updated Obstacle #" + obstacleNumber + " with Target ID: " + displayId);
             } else {
                 Log.w(TAG, "Obstacle #" + obstacleNumber + " not found");
             }
