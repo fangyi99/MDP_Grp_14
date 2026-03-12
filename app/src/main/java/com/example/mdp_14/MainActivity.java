@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.hardware.Sensor;
@@ -25,6 +26,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -440,6 +442,50 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             int width = (int)(getResources().getDisplayMetrics().widthPixels * 0.85);
             dialog.getWindow().setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
         }
+
+        // Language spinner setup
+        Spinner languageSpinner = dialogView.findViewById(R.id.languageSpinner);
+
+        String[] languages = {"English 英文", "Chinese 中文"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_spinner_item,
+                languages
+        );
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        languageSpinner.setAdapter(adapter);
+
+// Restore saved language
+        String savedLang = prefs.getString("language", "en");
+        languageSpinner.setSelection(savedLang.equals("zh") ? 1 : 0);
+
+// On selection
+        languageSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String langCode = position == 1 ? "zh" : "en";
+                String currentLang = prefs.getString("language", "en");
+
+                // Only apply if changed
+                if (!langCode.equals(currentLang)) {
+                    prefs.edit().putString("language", langCode).apply();
+
+                    // Apply locale and restart activity
+                    Locale locale = new Locale(langCode);
+                    Locale.setDefault(locale);
+                    Configuration config = new Configuration();
+                    config.setLocale(locale);
+                    getResources().updateConfiguration(config,
+                            getResources().getDisplayMetrics());
+
+                    dialog.dismiss();
+                    recreate(); // rebuild activity with new language
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
     }
 
     private void updateActionBarMenuItem() {
