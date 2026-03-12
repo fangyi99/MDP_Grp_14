@@ -296,12 +296,7 @@ public class ArenaMapView extends View {
         float centerY = (top + bottom) / 2;
 
         if (obstacle.hasRecognizedTarget()) {
-            // If target has been recognized, show ID small at top and recognized target large in center
-            Paint smallIdPaint = new Paint(targetTextPaint);
-            smallIdPaint.setTextSize(cellSize * 0.3f);
-            canvas.drawText(String.valueOf(obstacle.getId()), centerX, top + cellSize * 0.4f, smallIdPaint);
-
-            // Draw recognized target ID in large white font
+            // If target has been recognized, show only the recognized target ID (no obstacle ID)
             Paint largeTargetPaint = new Paint(targetTextPaint);
             largeTargetPaint.setTextSize(cellSize * 0.7f);
             largeTargetPaint.setFakeBoldText(true);
