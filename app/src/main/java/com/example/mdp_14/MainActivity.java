@@ -87,7 +87,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private Button clearAllButton;
     private Button spawnRobotButton;
     private Button sendObstaclesButton;
-    private Button stopButton;
+    private Button resetButton;
     private Button exploreButton;
     private Button fastestPathButton;
     private ToggleButton lockToggle;
@@ -194,7 +194,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         clearAllButton = findViewById(R.id.clearAllButton);
         spawnRobotButton = findViewById(R.id.spawnRobotButton);
         sendObstaclesButton = findViewById(R.id.sendObstaclesButton);
-        stopButton = findViewById(R.id.stopButton);
+        resetButton = findViewById(R.id.resetButton);
         exploreButton = findViewById(R.id.exploreButton);
         fastestPathButton = findViewById(R.id.fastestPathButton);
         lockToggle = findViewById(R.id.lockToggle);
@@ -290,6 +290,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                         .setMessage(jsonString)
                         .setPositiveButton("OK", null)
                         .show();
+
+                sendCommand(jsonString);
             } catch (JSONException e) {
                 Log.e(TAG, "Error creating JSON", e);
                 Toast.makeText(this, "Error creating JSON", Toast.LENGTH_SHORT).show();
@@ -297,9 +299,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         });
 
-        stopButton.setOnClickListener(v -> {
-            stopRobot();
-            resetTimer();
+        resetButton.setOnClickListener(v -> {
+            sendCommand("{\"cat\": \"control\", \"value\": \"stop\"}");
+            resetAll();
+
         });
 
         exploreButton.setOnClickListener(v -> {
@@ -685,7 +688,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             // Check if 5:55 minutes reached
             if (elapsedMillis >= MAX_TIME_MILLIS) {
                 elapsedMillis = MAX_TIME_MILLIS; // Cap at 5 minutes
-                stopRobot();
+                stopTimer();
+                sendCommand("{\"cat\": \"control\", \"value\": \"stop\"}");
+                resetExploreButtonUI();
+                resetFastestPathButtonUI();
                 return; // Stop the runnable
             }
 
@@ -694,8 +700,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             seconds = seconds % 60;
             int millis = (int) (elapsedMillis % 1000) / 10;
 
-            timerText.setText(String.format("%02d:%02d:%02d",
-                    minutes, seconds, millis));
+            timerText.setText(String.format("%02d:%02d:%02d", minutes, seconds, millis));
 
             timerHandler.postDelayed(this, 10); // Update every 10ms
         }
@@ -706,8 +711,41 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         isTimerRunning = false;
     }
 
+    // ==================== UI RESET FUNCTIONS ====================
+
+    private void resetExploreButtonUI() {
+        exploreButton.setBackground(getDrawable(R.drawable.bg_action_mint));
+        exploreButton.setTextColor(getColor(R.color.mint));
+    }
+
+    private void resetFastestPathButtonUI() {
+        fastestPathButton.setBackground(getDrawable(R.drawable.bg_action_mint));
+        fastestPathButton.setTextColor(getColor(R.color.mint));
+    }
+
     private void resetTimer() {
+        stopTimer();
         timerText.setText("00:00:00");
+    }
+
+    private void resetAllObstacles() {
+        List<Obstacle> obstacles = arenaMapView.getObstacles();
+
+        for (Obstacle obstacle : obstacles) {
+            obstacle.setRecognizedTargetId(null); // Clear the recognized target
+        }
+
+        arenaMapView.invalidate(); // Redraw to show cleared state
+        Log.d(TAG, "All obstacle recognitions cleared");
+    }
+
+    private void resetAll() {
+        // Reset UI
+        resetExploreButtonUI();
+        resetFastestPathButtonUI();
+        resetTimer();
+        resetAllObstacles();
+
     }
 
     // ============================================================
@@ -740,6 +778,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             JSONObject value = json.getJSONObject("value");
             String statusMsg = value.getString("robot_status");
             robotStatusText.setText(statusMsg);
+
+            if(statusMsg.equals("finished")) {
+                stopTimer();
+            }
+
         } catch (JSONException e) {
             Log.d(TAG, "Not a JSON status message: " + message);
         }
@@ -1006,16 +1049,16 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         sendCommand("{\"cat\": \"control\", \"value\": \"start\"}");
     }
 
-    private void stopRobot(){
-        stopTimer();
-        sendCommand("{\"cat\": \"control\", \"value\": \"stop\"}");
-
-        //update ui
-        exploreButton.setBackground(getDrawable(R.drawable.bg_action_mint));
-        exploreButton.setTextColor(getColor(R.color.mint));
-        fastestPathButton.setBackground(getDrawable(R.drawable.bg_action_mint));
-        fastestPathButton.setTextColor(getColor(R.color.mint));
-    }
+//    private void stopRobot(){
+//        stopTimer();
+//        sendCommand("{\"cat\": \"control\", \"value\": \"stop\"}");
+//
+//        //update ui
+//        exploreButton.setBackground(getDrawable(R.drawable.bg_action_mint));
+//        exploreButton.setTextColor(getColor(R.color.mint));
+//        fastestPathButton.setBackground(getDrawable(R.drawable.bg_action_mint));
+//        fastestPathButton.setTextColor(getColor(R.color.mint));
+//    }
 
     // ============================================================
     // TILT CONTROL (C.3)
