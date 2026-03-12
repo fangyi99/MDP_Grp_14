@@ -5,9 +5,11 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -22,10 +24,13 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.RadioButton;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -35,6 +40,7 @@ import android.widget.ToggleButton;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -62,6 +68,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private MenuItem deviceNameMenuItem;
     private String connectedDeviceName = null;
     private Button connectButton;
+
+    // Settings
+    private Button settingsBtn;
 
     // UI Elements - Status displays
     private TextView robotStatusText;
@@ -370,6 +379,67 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         });
         updateActionBarMenuItem();
         return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.settingsBtn) {
+            showSettingsDialog();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void showSettingsDialog() {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_settings, null);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setCancelable(true)
+                .create();
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(
+                    new ColorDrawable(Color.TRANSPARENT));
+        }
+
+        LinearLayout optionLight = dialogView.findViewById(R.id.optionLight);
+        LinearLayout optionDark  = dialogView.findViewById(R.id.optionDark);
+        RadioButton  radioLight  = dialogView.findViewById(R.id.radioLight);
+        RadioButton radioDark   = dialogView.findViewById(R.id.radioDark);
+        Button       btnClose    = dialogView.findViewById(R.id.btnCloseSettings);
+
+        SharedPreferences prefs = getSharedPreferences("settings", MODE_PRIVATE);
+        boolean isDark = prefs.getBoolean("dark_mode", false);
+        radioLight.setChecked(!isDark);
+        radioDark.setChecked(isDark);
+
+        optionLight.setOnClickListener(v -> {
+            radioLight.setChecked(true);
+            radioDark.setChecked(false);
+            prefs.edit().putBoolean("dark_mode", false).apply();
+            AppCompatDelegate.setDefaultNightMode(
+                    AppCompatDelegate.MODE_NIGHT_NO);
+            dialog.dismiss();
+        });
+
+        optionDark.setOnClickListener(v -> {
+            radioDark.setChecked(true);
+            radioLight.setChecked(false);
+            prefs.edit().putBoolean("dark_mode", true).apply();
+            AppCompatDelegate.setDefaultNightMode(
+                    AppCompatDelegate.MODE_NIGHT_YES);
+            dialog.dismiss();
+        });
+
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
+
+        if (dialog.getWindow() != null) {
+            int width = (int)(getResources().getDisplayMetrics().widthPixels * 0.85);
+            dialog.getWindow().setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
     }
 
     private void updateActionBarMenuItem() {

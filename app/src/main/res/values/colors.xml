@@ -48,4 +48,11 @@
     <color name="pill_violet_start">#F2EEFF</color>
     <color name="pill_violet_end">#F8F5FF</color>
     <color name="pill_violet_stroke">#33A78BFA</color>
+
+    <!-- Map -->
+    <color name="grid_paint">#403D7EFF</color>
+    <color name="obstacle_paint">#80FF0000</color>
+    <color name="tooltip_paint">#DD000000</color>
+    <color name="robot_direction_paint">#007A62</color>
+
 </resources>
