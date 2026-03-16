@@ -351,7 +351,7 @@
                         android:stateListAnimator="@null"/>
 
                     <Button
-                        android:id="@+id/stopButton"
+                        android:id="@+id/resetButton"
                         android:layout_width="0dp"
                         android:layout_height="34dp"
                         android:layout_weight="1"
