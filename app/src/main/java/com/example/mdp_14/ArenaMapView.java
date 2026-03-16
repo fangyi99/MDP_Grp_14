@@ -93,7 +93,7 @@ public class ArenaMapView extends View {
 
         // Obstacle fill paint
         obstaclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        obstaclePaint.setColor(Color.BLACK);
+        obstaclePaint.setColor(ContextCompat.getColor(getContext(), R.color.ink));
         obstaclePaint.setStyle(Paint.Style.FILL);
 
         // Obstacle delete preview paint (red, semi-transparent)
@@ -108,7 +108,7 @@ public class ArenaMapView extends View {
 
         // Target text paint
         targetTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        targetTextPaint.setColor(Color.WHITE);
+        targetTextPaint.setColor(ContextCompat.getColor(getContext(), R.color.bg_card));
         targetTextPaint.setTextAlign(Paint.Align.CENTER);
 
         // Grid label paint
@@ -125,12 +125,12 @@ public class ArenaMapView extends View {
 
         // Tooltip paint
         tooltipBgPaint = new Paint();
-        tooltipBgPaint.setColor(ContextCompat.getColor(getContext(), R.color.tooltip_paint));
+        tooltipBgPaint.setColor(ContextCompat.getColor(getContext(), R.color.ink));
         tooltipBgPaint.setStyle(Paint.Style.FILL);
         tooltipBgPaint.setAntiAlias(true);
 
         tooltipTextPaint = new Paint();
-        tooltipTextPaint.setColor(Color.WHITE);
+        tooltipTextPaint.setColor(ContextCompat.getColor(getContext(), R.color.bg_card));
         tooltipTextPaint.setTextSize(18);
         tooltipTextPaint.setTextAlign(Paint.Align.CENTER);
         tooltipTextPaint.setAntiAlias(true);

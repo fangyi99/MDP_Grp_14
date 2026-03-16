@@ -306,19 +306,51 @@ public class MainActivity extends AppCompatActivity
         }
 
         try {
-            String json = obstacleManager.buildObstaclesJSON().toString(2);
-
-            new AlertDialog.Builder(this)
-                    .setTitle("Obstacles JSON")
-                    .setMessage(json)
-                    .setPositiveButton("OK", null)
-                    .show();
-
+            showSimpleObstacleList();
+            String json = obstacleManager.buildObstaclesJSON().toString();
             sendCommand(json);
         } catch (JSONException e) {
             Log.e(TAG, "Error creating JSON", e);
             Toast.makeText(this, "Error creating JSON", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    /**
+     * Show obstacle list in monospace code style
+     */
+    private void showSimpleObstacleList() {
+        List<Obstacle> obstacles = arenaMapView.getObstacles();
+
+        if (obstacles.isEmpty()) {
+            return; // Already handled in handleSendObstacles
+        }
+
+        // Build simple text list
+        StringBuilder message = new StringBuilder();
+        message.append("Total: ").append(obstacles.size()).append(" obstacles\n");
+        message.append("────────────────────────\n\n");
+
+        for (Obstacle obs : obstacles) {
+            message.append("ID:       ").append(obs.getId()).append("\n");
+            message.append("Position: (").append(obs.getGridX()).append(", ").append(obs.getGridY()).append(")\n");
+            message.append("Facing:   ").append(obs.getTargetFace().getDisplayName()).append("\n");
+            message.append("\n");
+        }
+
+        // Create TextView with monospace font
+        TextView textView = new TextView(this);
+        textView.setText(message.toString());
+        textView.setTypeface(android.graphics.Typeface.MONOSPACE);
+        textView.setTextColor(0xFF37474F); // Dark grey code-like color
+        textView.setPadding(40, 40, 40, 40);
+        textView.setTextSize(14);
+
+        // Show dialog
+        new AlertDialog.Builder(this)
+                .setTitle("Obstacles Sent")
+                .setView(textView)
+                .setPositiveButton("OK", null)
+                .show();
     }
 
     private void handleReset() {
