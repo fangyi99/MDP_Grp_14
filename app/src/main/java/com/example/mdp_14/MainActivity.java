@@ -5,9 +5,11 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -22,12 +24,15 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.RadioButton;
 import android.widget.Spinner;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
@@ -35,6 +40,8 @@ import android.widget.ToggleButton;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -77,7 +84,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private Button downButton;
     private Button leftButton;
     private Button rightButton;
-    private Switch tiltControlSwitch;
+    private SwitchCompat tiltControlSwitch;
 
     // UI Elements - Arena Map (C.5, C.6, C.7)
     private ArenaMapView arenaMapView;
@@ -135,11 +142,20 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Restore dark/light mode BEFORE setContentView
+        SharedPreferences prefs = getSharedPreferences("settings", MODE_PRIVATE);
+        boolean isDark = prefs.getBoolean("dark_mode", false);
+        AppCompatDelegate.setDefaultNightMode(
+                isDark ? AppCompatDelegate.MODE_NIGHT_YES
+                        : AppCompatDelegate.MODE_NIGHT_NO);
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         // Initialize UI elements
         initializeViews();
+
+        applyColourBlindMode();
 
         // Initialize sensor manager for tilt control (C.3)
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
@@ -166,6 +182,38 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         // Auto-start listening for incoming connections
         startListeningOnStartup();
+    }
+    private void applyColourBlindMode() {
+        SharedPreferences prefs = getSharedPreferences("settings", MODE_PRIVATE);
+        boolean cbMode = prefs.getBoolean("colour_blind_mode", false);
+
+        if (cbMode) {
+            // Override each UI element's color manually
+            exploreButton.setTextColor(ContextCompat.getColor(this, R.color.cb_mint));
+            exploreButton.setBackground(ContextCompat.getDrawable(this, R.drawable.bg_action_cb_mint));
+            fastestPathButton.setTextColor(ContextCompat.getColor(this, R.color.cb_mint));
+            fastestPathButton.setBackground(ContextCompat.getDrawable(this, R.drawable.bg_action_cb_mint));
+            deleteObstacleButton.setTextColor(ContextCompat.getColor(this, R.color.cb_coral));
+            clearAllButton.setTextColor(ContextCompat.getColor(this, R.color.cb_coral));
+            stopButton.setTextColor(ContextCompat.getColor(this, R.color.cb_coral));
+              if (connectButton != null) {
+                  connectButton.setBackgroundTintList(ColorStateList.valueOf(
+                          ContextCompat.getColor(this, R.color.cb_mint)));
+              }
+        } else {
+            // Reset to normal colors when turning off
+            exploreButton.setTextColor(ContextCompat.getColor(this, R.color.mint));
+            exploreButton.setBackground(ContextCompat.getDrawable(this, R.drawable.bg_action_mint));
+            fastestPathButton.setTextColor(ContextCompat.getColor(this, R.color.mint));
+            fastestPathButton.setBackground(ContextCompat.getDrawable(this, R.drawable.bg_action_mint));
+            deleteObstacleButton.setTextColor(ContextCompat.getColor(this, R.color.coral));
+            clearAllButton.setTextColor(ContextCompat.getColor(this, R.color.coral));
+            stopButton.setTextColor(ContextCompat.getColor(this, R.color.coral));
+            if (connectButton != null) {
+                connectButton.setBackgroundTintList(ColorStateList.valueOf(
+                        ContextCompat.getColor(this, R.color.mint)));
+            }
+        }
     }
 
     private void initializeViews() {
@@ -372,7 +420,123 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         });
         updateActionBarMenuItem();
+        applyColourBlindMode();
         return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.settingsBtn) {
+            showSettingsDialog();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void showSettingsDialog() {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_settings, null);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setCancelable(true)
+                .create();
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(
+                    new ColorDrawable(Color.TRANSPARENT));
+        }
+
+        LinearLayout optionLight = dialogView.findViewById(R.id.optionLight);
+        LinearLayout optionDark  = dialogView.findViewById(R.id.optionDark);
+        RadioButton  radioLight  = dialogView.findViewById(R.id.radioLight);
+        RadioButton radioDark   = dialogView.findViewById(R.id.radioDark);
+        Button       btnClose    = dialogView.findViewById(R.id.btnCloseSettings);
+
+        SharedPreferences prefs = getSharedPreferences("settings", MODE_PRIVATE);
+        boolean isDark = prefs.getBoolean("dark_mode", false);
+        radioLight.setChecked(!isDark);
+        radioDark.setChecked(isDark);
+
+        optionLight.setOnClickListener(v -> {
+            radioLight.setChecked(true);
+            radioDark.setChecked(false);
+            prefs.edit().putBoolean("dark_mode", false).apply();
+            AppCompatDelegate.setDefaultNightMode(
+                    AppCompatDelegate.MODE_NIGHT_NO);
+            dialog.dismiss();
+        });
+
+        optionDark.setOnClickListener(v -> {
+            radioDark.setChecked(true);
+            radioLight.setChecked(false);
+            prefs.edit().putBoolean("dark_mode", true).apply();
+            AppCompatDelegate.setDefaultNightMode(
+                    AppCompatDelegate.MODE_NIGHT_YES);
+            dialog.dismiss();
+        });
+
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
+
+        if (dialog.getWindow() != null) {
+            int width = (int)(getResources().getDisplayMetrics().widthPixels * 0.85);
+            dialog.getWindow().setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+
+        SwitchCompat colourBlindSwitch = dialogView.findViewById(R.id.colourBlindSwitch);
+        colourBlindSwitch.setChecked(prefs.getBoolean("colour_blind_mode", false));
+        colourBlindSwitch.setOnCheckedChangeListener((btn, isChecked) -> {
+            prefs.edit().putBoolean("colour_blind_mode", isChecked).apply();
+            applyColourBlindMode();
+        });
+
+        // Language spinner setup
+        Spinner languageSpinner = dialogView.findViewById(R.id.languageSpinner);
+
+        String[] languages = {"English 英文", "Chinese 中文"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                this,
+                R.layout.spinner_item,
+                languages
+        );
+        adapter.setDropDownViewResource(R.layout.spinner_item);
+        languageSpinner.setAdapter(adapter);
+
+// Restore saved language
+        String savedLang = prefs.getString("language", "en");
+        languageSpinner.setSelection(savedLang.equals("zh") ? 1 : 0);
+
+// On selection
+        languageSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String langCode = position == 1 ? "zh" : "en";
+                String currentLang = prefs.getString("language", "en");
+
+                // Only apply if changed
+                if (!langCode.equals(currentLang)) {
+                    prefs.edit().putString("language", langCode).apply();
+
+                    // Apply locale and restart activity
+                    Locale locale = new Locale(langCode);
+                    Locale.setDefault(locale);
+                    dialog.dismiss();
+                    recreate();
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        SharedPreferences prefs = base.getSharedPreferences("settings", MODE_PRIVATE);
+        String lang = prefs.getString("language", "en");
+        Locale locale = new Locale(lang);
+        super.attachBaseContext(LocaleContextWrapper.wrap(base, locale));
     }
 
     private void updateActionBarMenuItem() {
@@ -770,9 +934,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
      */
     private void handleStatusUpdate(String message) {
         try {
-//            JSONObject json = new JSONObject(message);
-//            String statusMsg = json.getString("status").toUpperCase();
-
             JSONObject json = new JSONObject(message);
 
             JSONObject value = json.getJSONObject("value");
@@ -1051,16 +1212,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         sendCommand("{\"cat\": \"control\", \"value\": \"start\"}");
     }
 
-//    private void stopRobot(){
-//        stopTimer();
-//        sendCommand("{\"cat\": \"control\", \"value\": \"stop\"}");
-//
-//        //update ui
-//        exploreButton.setBackground(getDrawable(R.drawable.bg_action_mint));
-//        exploreButton.setTextColor(getColor(R.color.mint));
-//        fastestPathButton.setBackground(getDrawable(R.drawable.bg_action_mint));
-//        fastestPathButton.setTextColor(getColor(R.color.mint));
-//    }
+    private void stopRobot(){
+        stopTimer();
+        sendCommand("{\"cat\": \"control\", \"value\": \"stop\"}");
+
+        //update ui
+        //TODO: update UI with color blind palette
+        exploreButton.setBackground(getDrawable(R.drawable.bg_action_mint));
+        exploreButton.setTextColor(getColor(R.color.mint));
+        fastestPathButton.setBackground(getDrawable(R.drawable.bg_action_mint));
+        fastestPathButton.setTextColor(getColor(R.color.mint));
+    }
 
     // ============================================================
     // TILT CONTROL (C.3)

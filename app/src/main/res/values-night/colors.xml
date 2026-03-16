@@ -38,8 +38,15 @@
     <color name="violet_dark">#9B7FFF</color>
     <color name="violet_soft">#22B8A0FF</color>
 
-    <!-- Pill gradients — dark tinted surfaces -->
+    <!-- Stat pill gradient backgrounds — dark tinted surfaces -->
     <color name="pill_violet_start">#1A1030</color>
     <color name="pill_violet_end">#150C28</color>
     <color name="pill_violet_stroke">#3DB8A0FF</color>
+
+    <!-- Map -->
+    <color name="grid_paint">#555B96FF</color>
+    <color name="obstacle_paint">#99FF4444</color>
+    <color name="tooltip_paint">#EEE8F0FF</color>
+    <color name="robot_direction_paint">#00A882</color>
+
 </resources>
