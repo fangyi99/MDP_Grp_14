@@ -2,12 +2,9 @@ package com.example.mdp_14;
 
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.hardware.Sensor;
@@ -18,7 +15,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.Message;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -45,179 +41,103 @@ import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 
-import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
 
-public class MainActivity extends AppCompatActivity implements SensorEventListener, ArenaMapView.OnObstacleActionListener {
+/**
+ * Main Activity - coordinates all app components
+ * Delegates specific responsibilities to manager classes
+ */
+public class MainActivity extends AppCompatActivity
+        implements SensorEventListener,
+        ArenaMapView.OnObstacleActionListener,
+        BluetoothManager.BluetoothCallback,
+        MessageParser.MessageCallback,
+        RobotController.RobotControllerCallback,
+        RobotController.CommandSender {
+
     private static final String TAG = "MainActivity";
     private static final int REQUEST_BLUETOOTH_PERMISSIONS = 1;
-    private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-    private static final long MAX_TIME_MILLIS = (5 * 60 + 55) * 1000; //5 minutes 55 seconds
 
-    // Menu items for ActionBar
+    // ============================================================
+    // MANAGER CLASSES
+    // ============================================================
+    private BluetoothManager bluetoothManager;
+    private MessageParser messageParser;
+    private RobotController robotController;
+    private ObstacleManager obstacleManager;
+    private UIManager uiManager;
+    private TiltController tiltController;
+
+    // ============================================================
+    // UI ELEMENTS
+    // ============================================================
     private MenuItem deviceNameMenuItem;
-    private String connectedDeviceName = null;
     private Button connectButton;
 
-    // UI Elements - Status displays
+    // Status displays
     private TextView robotStatusText;
     private TextView positionText;
     private TextView directionText;
+    private TextView timerText;
     private TextView receivedText;
     private EditText messageInput;
     private ImageButton sendButton;
     private Button clearMessagesButton;
 
-    // UI Elements - D-Pad controls (C.3)
-    private Button upButton;
-    private Button downButton;
-    private Button leftButton;
-    private Button rightButton;
+    // D-Pad controls
+    private Button upButton, downButton, leftButton, rightButton;
     private SwitchCompat tiltControlSwitch;
 
-    // UI Elements - Arena Map (C.5, C.6, C.7)
+    // Arena controls
     private ArenaMapView arenaMapView;
-    private Button addObstacleButton;
-    private Button editObstacleButton;
-    private Button deleteObstacleButton;
-    private Button clearAllButton;
-    private Button spawnRobotButton;
-    private Button sendObstaclesButton;
-    private Button resetButton;
-    private Button exploreButton;
-    private Button fastestPathButton;
+    private Button addObstacleButton, editObstacleButton, deleteObstacleButton;
+    private Button clearAllButton, spawnRobotButton, sendObstaclesButton;
+    private Button resetButton, exploreButton, fastestPathButton;
     private ToggleButton lockToggle;
 
-    // Bluetooth
-    private BluetoothAdapter bluetoothAdapter;
-    private BluetoothService bluetoothService;
-    private boolean isConnected = false;
-
-    // Tilt control variables (C.3)
-    private SensorManager sensorManager;
-    private Sensor accelerometer;
-    private boolean isTiltControlEnabled = false;
-    private long lastTiltCommandTime = 0;
-    private static final long TILT_COMMAND_INTERVAL = 500;
-    private static final float TILT_THRESHOLD = 3.0f;
-
-    // Timer
-    private TextView timerText;
-    private long startTime = 0;
-    private Handler timerHandler = new Handler();
-    private boolean isTimerRunning = false;
-
-    /*
-     * ============================================================
-     * BLUETOOTH PROTOCOL FOR OBSTACLES (C.6 & C.7)
-     * ============================================================
-     *
-     * Format for sending all obstacles:
-     *  {
-     *      "cat": "obstacles",
-     *      "value": {
-     *          "obstacles": [{"x": <x>, "y": <y>, "id": <id>, "d": <direction>}],
-     *          "mode": "0"
-     *      }
-     *  }
-     *
-     * Where:
-     *   <id>          = Obstacle number (1, 2, 3, ...)
-     *   <x>, <y>      = Grid coordinates (0-19)
-     *   <direction>   = 0 : N, 2 : E, 4 : S, 6: W (which face has the target image)
-     *
-     * ============================================================
-     */
+    // ============================================================
+    // LIFECYCLE
+    // ============================================================
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Restore dark/light mode BEFORE setContentView
-        SharedPreferences prefs = getSharedPreferences("settings", MODE_PRIVATE);
-        boolean isDark = prefs.getBoolean("dark_mode", false);
-        AppCompatDelegate.setDefaultNightMode(
-                isDark ? AppCompatDelegate.MODE_NIGHT_YES
-                        : AppCompatDelegate.MODE_NIGHT_NO);
-
+        restoreThemePreference();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Initialize UI elements
         initializeViews();
-
-        applyColourBlindMode();
-
-        // Initialize sensor manager for tilt control (C.3)
-        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-
-        // Get Bluetooth adapter
-        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-
-        if (bluetoothAdapter == null) {
-            Toast.makeText(this, "Bluetooth is not available on this device", Toast.LENGTH_LONG).show();
-            finish();
-            return;
-        }
-
-        // Initialize Bluetooth service
-        bluetoothService = new BluetoothService(messageHandler, bluetoothAdapter);
-
-        // Set up button listeners
-        setupDPadControls();
-        setupArenaMapUI();
-
-        // Check permissions on startup
+        initializeManagers();
+        setupListeners();
         checkPermissions();
 
-        // Auto-start listening for incoming connections
-        startListeningOnStartup();
+        // Start listening for incoming connections
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            bluetoothManager.startListening();
+        }, 500);
     }
-    private void applyColourBlindMode() {
-        SharedPreferences prefs = getSharedPreferences("settings", MODE_PRIVATE);
-        boolean cbMode = prefs.getBoolean("colour_blind_mode", false);
 
-        if (cbMode) {
-            // Override each UI element's color manually
-            exploreButton.setTextColor(ContextCompat.getColor(this, R.color.cb_mint));
-            exploreButton.setBackground(ContextCompat.getDrawable(this, R.drawable.bg_action_cb_mint));
-            fastestPathButton.setTextColor(ContextCompat.getColor(this, R.color.cb_mint));
-            fastestPathButton.setBackground(ContextCompat.getDrawable(this, R.drawable.bg_action_cb_mint));
-            deleteObstacleButton.setTextColor(ContextCompat.getColor(this, R.color.cb_coral));
-            clearAllButton.setTextColor(ContextCompat.getColor(this, R.color.cb_coral));
-            stopButton.setTextColor(ContextCompat.getColor(this, R.color.cb_coral));
-              if (connectButton != null) {
-                  connectButton.setBackgroundTintList(ColorStateList.valueOf(
-                          ContextCompat.getColor(this, R.color.cb_mint)));
-              }
-        } else {
-            // Reset to normal colors when turning off
-            exploreButton.setTextColor(ContextCompat.getColor(this, R.color.mint));
-            exploreButton.setBackground(ContextCompat.getDrawable(this, R.drawable.bg_action_mint));
-            fastestPathButton.setTextColor(ContextCompat.getColor(this, R.color.mint));
-            fastestPathButton.setBackground(ContextCompat.getDrawable(this, R.drawable.bg_action_mint));
-            deleteObstacleButton.setTextColor(ContextCompat.getColor(this, R.color.coral));
-            clearAllButton.setTextColor(ContextCompat.getColor(this, R.color.coral));
-            stopButton.setTextColor(ContextCompat.getColor(this, R.color.coral));
-            if (connectButton != null) {
-                connectButton.setBackgroundTintList(ColorStateList.valueOf(
-                        ContextCompat.getColor(this, R.color.mint)));
-            }
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        bluetoothManager.cleanup();
+        robotController.cleanup();
+        if (tiltController != null) {
+            tiltController.disable();
         }
     }
 
+    // ============================================================
+    // INITIALIZATION
+    // ============================================================
+
     private void initializeViews() {
-        // Status displays (C.4)
+        // Status displays
         robotStatusText = findViewById(R.id.robotStatusTxt);
         positionText = findViewById(R.id.positionTxt);
         directionText = findViewById(R.id.directionTxt);
@@ -227,14 +147,14 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         sendButton = findViewById(R.id.sendBtn);
         clearMessagesButton = findViewById(R.id.clearMessagesBtn);
 
-        // D-Pad controls (C.3)
+        // D-Pad controls
         upButton = findViewById(R.id.upBtn);
         downButton = findViewById(R.id.downBtn);
         leftButton = findViewById(R.id.leftBtn);
         rightButton = findViewById(R.id.rightBtn);
         tiltControlSwitch = findViewById(R.id.tiltControlSwitch);
 
-        // Arena map views (C.5, C.6, C.7)
+        // Arena controls
         arenaMapView = findViewById(R.id.arenaMapView);
         addObstacleButton = findViewById(R.id.addObstacleButton);
         editObstacleButton = findViewById(R.id.editObstacleButton);
@@ -248,17 +168,55 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         lockToggle = findViewById(R.id.lockToggle);
     }
 
-    /**
-     * Setup D-Pad controls and message sending (C.3)
-     */
+    private void initializeManagers() {
+        // Bluetooth
+        BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (bluetoothAdapter == null) {
+            Toast.makeText(this, "Bluetooth not available", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+        bluetoothManager = new BluetoothManager(this, bluetoothAdapter);
+        bluetoothManager.setCallback(this);
+
+        // Message parsing
+        messageParser = new MessageParser(this);
+
+        // Robot control
+        robotController = new RobotController(timerText, this);
+        robotController.setCallback(this);
+
+        // Obstacles
+        obstacleManager = new ObstacleManager(arenaMapView);
+
+        // UI
+        uiManager = new UIManager(this, exploreButton, fastestPathButton,
+                deleteObstacleButton, clearAllButton, resetButton, connectButton,
+                robotStatusText, positionText, directionText);
+        uiManager.applyColorBlindMode();
+
+        // Tilt control
+        SensorManager sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        Sensor accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        tiltController = new TiltController(sensorManager, accelerometer, this);
+    }
+
+    private void setupListeners() {
+        setupDPadControls();
+        setupArenaControls();
+        arenaMapView.setOnObstacleActionListener(this);
+    }
+
+    // ============================================================
+    // D-PAD CONTROLS
+    // ============================================================
+
     private void setupDPadControls() {
-        // Direction button listeners
         upButton.setOnClickListener(v -> sendCommand("move:up"));
         downButton.setOnClickListener(v -> sendCommand("move:down"));
         leftButton.setOnClickListener(v -> sendCommand("move:left"));
         rightButton.setOnClickListener(v -> sendCommand("move:right"));
 
-        // Custom message send button
         sendButton.setOnClickListener(v -> {
             String message = messageInput.getText().toString().trim();
             if (!message.isEmpty()) {
@@ -269,142 +227,449 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         });
 
-        // Tilt control switch listener
         tiltControlSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (isChecked && isConnected) {
-                enableTiltControl();
+            if (isChecked && bluetoothManager.isConnected()) {
+                tiltController.enable();
+                setDPadButtonsEnabled(false);
             } else {
-                disableTiltControl();
+                tiltController.disable();
+                if (bluetoothManager.isConnected()) {
+                    setDPadButtonsEnabled(true);
+                }
             }
         });
 
         clearMessagesButton.setOnClickListener(v -> clearMessages());
     }
 
-    private void setupArenaMapUI() {
-        arenaMapView.setOnObstacleActionListener(this);
+    private void setDPadButtonsEnabled(boolean enabled) {
+        upButton.setEnabled(enabled);
+        downButton.setEnabled(enabled);
+        leftButton.setEnabled(enabled);
+        rightButton.setEnabled(enabled);
+    }
 
-        // Lock toggle - controls whether elements can be dragged
+    // ============================================================
+    // ARENA CONTROLS
+    // ============================================================
+
+    private void setupArenaControls() {
         lockToggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
             arenaMapView.setDragLocked(isChecked);
-            if (isChecked) {
-                Toast.makeText(this, "Map locked - dragging disabled", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Map unlocked - dragging enabled", Toast.LENGTH_SHORT).show();
-            }
+            String message = isChecked ? "Map locked" : "Map unlocked";
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
         });
 
-        // Spawn robot button
-        spawnRobotButton.setOnClickListener(v -> {
-            if (arenaMapView.hasRobot()) {
-                new AlertDialog.Builder(this)
-                        .setTitle("Robot")
-                        .setMessage("Robot already exists. What would you like to do?")
-                        .setPositiveButton("Reset Position", (dialog, which) -> {
-                            arenaMapView.spawnRobot();
-                            Robot robot = arenaMapView.getRobot();
-                            onRobotPositionChanged(robot);
-                            Toast.makeText(this, "Robot reset to start position", Toast.LENGTH_SHORT).show();
-                        })
-                        .setNegativeButton("Remove", (dialog, which) -> {
-                            arenaMapView.removeRobot();
-                            onRobotPositionChanged(null);
-                            Toast.makeText(this, "Robot removed", Toast.LENGTH_SHORT).show();
-                        })
-                        .setNeutralButton("Cancel", null)
-                        .show();
-            } else {
-                arenaMapView.spawnRobot();
-                Robot robot = arenaMapView.getRobot();
-                onRobotPositionChanged(robot);
-                Toast.makeText(this, "Robot spawned at bottom-left. Drag to position.", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        // Send obstacles button (C.6 & C.7)
-        sendObstaclesButton.setOnClickListener(v -> {
-            List<Obstacle> obstacles = arenaMapView.getObstacles();
-
-            if (obstacles.isEmpty()) {
-                Toast.makeText(this, "No obstacles on the map", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            try {
-                JSONObject message = buildObstaclesJSON(obstacles);
-                String jsonString = message.toString(2); // Pretty print
-
-                new AlertDialog.Builder(this)
-                        .setTitle("Obstacles JSON")
-                        .setMessage(jsonString)
-                        .setPositiveButton("OK", null)
-                        .show();
-
-                sendCommand(jsonString);
-            } catch (JSONException e) {
-                Log.e(TAG, "Error creating JSON", e);
-                Toast.makeText(this, "Error creating JSON", Toast.LENGTH_SHORT).show();
-
-            }
-        });
-
-        resetButton.setOnClickListener(v -> {
-            sendCommand("{\"cat\": \"control\", \"value\": \"stop\"}");
-            resetAll();
-
-        });
-
-        exploreButton.setOnClickListener(v -> {
-            startRobot();
-            exploreButton.setBackground(getDrawable(R.drawable.bg_action_mint_pressed));
-            exploreButton.setTextColor(getColor(R.color.gold));
-        });
-
-        fastestPathButton.setOnClickListener(v -> {
-            startRobot();
-            fastestPathButton.setBackground(getDrawable(R.drawable.bg_action_mint_pressed));
-            fastestPathButton.setTextColor(getColor(R.color.gold));
-        });
-
+        spawnRobotButton.setOnClickListener(v -> handleSpawnRobot());
+        sendObstaclesButton.setOnClickListener(v -> handleSendObstacles());
+        resetButton.setOnClickListener(v -> handleReset());
+        exploreButton.setOnClickListener(v -> handleExplore());
+        fastestPathButton.setOnClickListener(v -> handleFastestPath());
         addObstacleButton.setOnClickListener(v -> showAddObstacleDialog());
-
-        editObstacleButton.setOnClickListener(v -> {
-            Obstacle selected = arenaMapView.getSelectedObstacle();
-            if (selected != null) {
-                showEditObstacleDialog(selected);
-            } else {
-                Toast.makeText(this, "Please select an obstacle first", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        deleteObstacleButton.setOnClickListener(v -> {
-            Obstacle selected = arenaMapView.getSelectedObstacle();
-            if (selected != null) {
-                arenaMapView.removeObstacle(selected);
-                try {
-                    sendAllObstaclesToRobot();
-                } catch (JSONException e) {
-                    Log.e(TAG, "Failed to send obstacle update after deletion", e);
-                }
-                Toast.makeText(this, "Obstacle deleted", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Please select an obstacle first", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        clearAllButton.setOnClickListener(v -> {
-            new AlertDialog.Builder(this)
-                    .setTitle("Clear All")
-                    .setMessage("Remove all obstacles and robot?")
-                    .setPositiveButton("Yes", (dialog, which) -> {
-                        arenaMapView.clearObstacles();
-                        arenaMapView.removeRobot();
-                        onRobotPositionChanged(null);
-                        Toast.makeText(this, "All cleared", Toast.LENGTH_SHORT).show();
-                    })
-                    .setNegativeButton("No", null)
-                    .show();
-        });
+        editObstacleButton.setOnClickListener(v -> handleEditObstacle());
+        deleteObstacleButton.setOnClickListener(v -> handleDeleteObstacle());
+        clearAllButton.setOnClickListener(v -> handleClearAll());
     }
+
+    private void handleSpawnRobot() {
+        if (arenaMapView.hasRobot()) {
+            showRobotOptionsDialog();
+        } else {
+            arenaMapView.spawnRobot();
+            uiManager.updateRobotInfo(arenaMapView.getRobot());
+            Toast.makeText(this, "Robot spawned. Drag to position.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showRobotOptionsDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Robot")
+                .setMessage("Robot already exists. What would you like to do?")
+                .setPositiveButton("Reset Position", (dialog, which) -> {
+                    arenaMapView.spawnRobot();
+                    uiManager.updateRobotInfo(arenaMapView.getRobot());
+                    Toast.makeText(this, "Robot reset", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Remove", (dialog, which) -> {
+                    arenaMapView.removeRobot();
+                    uiManager.clearRobotPosition();
+                    Toast.makeText(this, "Robot removed", Toast.LENGTH_SHORT).show();
+                })
+                .setNeutralButton("Cancel", null)
+                .show();
+    }
+
+    private void handleSendObstacles() {
+        if (!obstacleManager.hasObstacles()) {
+            Toast.makeText(this, "No obstacles on the map", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            String json = obstacleManager.buildObstaclesJSON().toString(2);
+
+            new AlertDialog.Builder(this)
+                    .setTitle("Obstacles JSON")
+                    .setMessage(json)
+                    .setPositiveButton("OK", null)
+                    .show();
+
+            sendCommand(json);
+        } catch (JSONException e) {
+            Log.e(TAG, "Error creating JSON", e);
+            Toast.makeText(this, "Error creating JSON", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void handleReset() {
+        robotController.stop();
+        resetAll();
+        Toast.makeText(this, "Robot stopped and reset", Toast.LENGTH_SHORT).show();
+    }
+
+    private void handleExplore() {
+        robotController.start();
+        uiManager.setExploreButtonActive();
+    }
+
+    private void handleFastestPath() {
+        robotController.start();
+        uiManager.setFastestPathButtonActive();
+    }
+
+    private void handleEditObstacle() {
+        Obstacle selected = arenaMapView.getSelectedObstacle();
+        if (selected != null) {
+            showEditObstacleDialog(selected);
+        } else {
+            Toast.makeText(this, "Please select an obstacle first", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void handleDeleteObstacle() {
+        Obstacle selected = arenaMapView.getSelectedObstacle();
+        if (selected != null) {
+            arenaMapView.removeObstacle(selected);
+            sendObstacleUpdate();
+            Toast.makeText(this, "Obstacle deleted", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(this, "Please select an obstacle first", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void handleClearAll() {
+        new AlertDialog.Builder(this)
+                .setTitle("Clear All")
+                .setMessage("Remove all obstacles and robot?")
+                .setPositiveButton("Yes", (dialog, which) -> {
+                    arenaMapView.clearObstacles();
+                    arenaMapView.removeRobot();
+                    uiManager.clearRobotPosition();
+                    Toast.makeText(this, "All cleared", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("No", null)
+                .show();
+    }
+
+    private void resetAll() {
+        robotController.resetTimer();
+        uiManager.resetAllButtons();
+        obstacleManager.resetAllRecognitions();
+        uiManager.applyColorBlindMode();
+    }
+
+    // ============================================================
+    // OBSTACLE DIALOGS
+    // ============================================================
+
+    private void showAddObstacleDialog() {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_edit_obstacle, null);
+        TextView titleText = dialogView.findViewById(R.id.obstacleIdText);
+        titleText.setText(R.string.dialog_add_obstacle);
+
+        EditText widthInput = dialogView.findViewById(R.id.widthInput);
+        EditText heightInput = dialogView.findViewById(R.id.heightInput);
+        Spinner faceSpinner = dialogView.findViewById(R.id.faceSpinner);
+
+        setupDirectionSpinner(faceSpinner);
+        widthInput.setText("1");
+        heightInput.setText("1");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Add Obstacle")
+                .setView(dialogView)
+                .setPositiveButton("Add", (dialog, which) -> {
+                    addObstacleFromDialog(widthInput, heightInput, faceSpinner);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showEditObstacleDialog(Obstacle obstacle) {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_edit_obstacle, null);
+        TextView titleText = dialogView.findViewById(R.id.obstacleIdText);
+        titleText.setText("Obstacle #" + obstacle.getId());
+
+        EditText widthInput = dialogView.findViewById(R.id.widthInput);
+        EditText heightInput = dialogView.findViewById(R.id.heightInput);
+        Spinner faceSpinner = dialogView.findViewById(R.id.faceSpinner);
+
+        setupDirectionSpinner(faceSpinner);
+        widthInput.setText(String.valueOf(obstacle.getWidth()));
+        heightInput.setText(String.valueOf(obstacle.getHeight()));
+
+        String[] directions = {"North", "South", "East", "West"};
+        for (int i = 0; i < directions.length; i++) {
+            if (directions[i].equals(obstacle.getTargetFace().getDisplayName())) {
+                faceSpinner.setSelection(i);
+                break;
+            }
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Edit Obstacle")
+                .setView(dialogView)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    editObstacleFromDialog(obstacle, widthInput, heightInput, faceSpinner);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void setupDirectionSpinner(Spinner spinner) {
+        String[] directions = {"North", "South", "East", "West"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, directions);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+    }
+
+    private void addObstacleFromDialog(EditText widthInput, EditText heightInput, Spinner faceSpinner) {
+        try {
+            int width = Integer.parseInt(widthInput.getText().toString());
+            int height = Integer.parseInt(heightInput.getText().toString());
+            String selectedFace = (String) faceSpinner.getSelectedItem();
+
+            width = Math.max(1, Math.min(width, arenaMapView.getGridSize()));
+            height = Math.max(1, Math.min(height, arenaMapView.getGridSize()));
+
+            int gridX = (arenaMapView.getGridSize() - width) / 2;
+            int gridY = (arenaMapView.getGridSize() - height) / 2;
+
+            Obstacle obstacle = new Obstacle(gridX, gridY, width, height);
+            obstacle.setTargetFace(Obstacle.Direction.fromDisplayName(selectedFace));
+
+            arenaMapView.addObstacle(obstacle);
+            arenaMapView.setSelectedObstacle(obstacle);
+            sendObstacleUpdate();
+
+            Toast.makeText(this, "Obstacle added. Drag to position.", Toast.LENGTH_SHORT).show();
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "Invalid dimensions", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void editObstacleFromDialog(Obstacle obstacle, EditText widthInput,
+                                        EditText heightInput, Spinner faceSpinner) {
+        try {
+            int width = Integer.parseInt(widthInput.getText().toString());
+            int height = Integer.parseInt(heightInput.getText().toString());
+            String selectedFace = (String) faceSpinner.getSelectedItem();
+
+            width = Math.max(1, Math.min(width, arenaMapView.getGridSize()));
+            height = Math.max(1, Math.min(height, arenaMapView.getGridSize()));
+
+            obstacle.setWidth(width);
+            obstacle.setHeight(height);
+            obstacle.setTargetFace(Obstacle.Direction.fromDisplayName(selectedFace));
+
+            if (obstacle.getGridX() + width > arenaMapView.getGridSize()) {
+                obstacle.setGridX(arenaMapView.getGridSize() - width);
+            }
+            if (obstacle.getGridY() + height > arenaMapView.getGridSize()) {
+                obstacle.setGridY(arenaMapView.getGridSize() - height);
+            }
+
+            arenaMapView.updateObstacle(obstacle);
+            sendObstacleUpdate();
+            Toast.makeText(this, "Obstacle updated", Toast.LENGTH_SHORT).show();
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "Invalid dimensions", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void sendObstacleUpdate() {
+        try {
+            String json = obstacleManager.buildObstaclesJSON().toString();
+            sendCommand(json);
+        } catch (JSONException e) {
+            Log.e(TAG, "Failed to send obstacle update", e);
+        }
+    }
+
+    // ============================================================
+    // ARENA MAP LISTENER CALLBACKS
+    // ============================================================
+
+    @Override
+    public void onObstacleLongPress(Obstacle obstacle) {
+        showEditObstacleDialog(obstacle);
+    }
+
+    @Override
+    public void onObstacleSelected(Obstacle obstacle) {
+        Log.d(TAG, "Selected: " + obstacle);
+    }
+
+    @Override
+    public void onObstaclePositionChanged(Obstacle obstacle) {
+        sendObstacleUpdate();
+    }
+
+    @Override
+    public void onObstacleRemovedByDrag(Obstacle obstacle) {
+        sendObstacleUpdate();
+        Toast.makeText(this, "Obstacle #" + obstacle.getId() + " removed", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onRobotPositionChanged(Robot robot) {
+        uiManager.updateRobotInfo(robot);
+    }
+
+    @Override
+    public void onEmptyCellTap(int gridX, int gridY) {
+        Log.d(TAG, "Empty cell tapped: (" + gridX + ", " + gridY + ")");
+    }
+
+    // ============================================================
+    // BLUETOOTH CALLBACKS
+    // ============================================================
+
+    @Override
+    public void onConnected(String deviceName) {
+        uiManager.setConnectedState(deviceName);
+        setDPadButtonsEnabled(true);
+        sendButton.setEnabled(true);
+        tiltControlSwitch.setEnabled(true);
+        updateActionBarMenuItem(deviceName);
+        logMessage("Device connected: " + deviceName, "#4CAF50");
+        Toast.makeText(this, "Connected!", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onDisconnected() {
+        uiManager.setDisconnectedState();
+        setDPadButtonsEnabled(false);
+        sendButton.setEnabled(false);
+        tiltControlSwitch.setEnabled(false);
+        tiltControlSwitch.setChecked(false);
+        updateActionBarMenuItem(null);
+        logMessage("Device disconnected", "#F44336");
+        Toast.makeText(this, "Disconnected", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onMessageReceived(String message) {
+        logMessage("Received: " + message, "#388E3C");
+        messageParser.parseMessage(message);
+    }
+
+    @Override
+    public void onMessageSent(String message) {
+        logMessage("Sent: " + message, "#1976D2");
+    }
+
+    @Override
+    public void onConnectionFailed(String error) {
+        uiManager.setDisconnectedState();
+        logMessage("Connection failed: " + error, "#F44336");
+        Toast.makeText(this, "Connection failed", Toast.LENGTH_LONG).show();
+    }
+
+    // ============================================================
+    // MESSAGE PARSER CALLBACKS
+    // ============================================================
+
+    @Override
+    public void onStatusUpdate(String status) {
+        uiManager.updateRobotStatus(status);
+
+        if ("finished".equalsIgnoreCase(status)) {
+            robotController.stopTimer();
+            uiManager.resetAllButtons();
+        }
+    }
+
+    @Override
+    public void onImageRecognition(String imageId, int obstacleId) {
+        String displayId = ImageIdMapper.mapImageId(imageId);
+
+        Obstacle obstacle = obstacleManager.findObstacleById(obstacleId);
+        if (obstacle != null) {
+            obstacle.setRecognizedTargetId(displayId);
+            arenaMapView.updateObstacle(obstacle);
+            Toast.makeText(this, "Target " + displayId + " on Obstacle #" + obstacleId,
+                    Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "Image recognized: " + displayId + " on obstacle " + obstacleId);
+        } else {
+            Log.w(TAG, "Obstacle #" + obstacleId + " not found");
+        }
+    }
+
+    @Override
+    public void onRobotLocationUpdate(int x, int y, int direction) {
+        Robot.Direction facing = Robot.Direction.fromNumeric(direction);
+
+        int gridSize = arenaMapView.getGridSize();
+        if (x < 0 || x > gridSize - Robot.SIZE || y < 0 || y > gridSize - Robot.SIZE) {
+            Log.w(TAG, "Robot coordinates out of bounds: (" + x + ", " + y + ")");
+            return;
+        }
+
+        arenaMapView.updateRobotPosition(x, y, facing);
+        uiManager.updateRobotPosition(x, y);
+        uiManager.updateRobotDirection(facing.name());
+    }
+
+    // ============================================================
+    // ROBOT CONTROLLER CALLBACKS
+    // ============================================================
+
+    @Override
+    public void onTimerExpired() {
+        uiManager.resetAllButtons();
+        Toast.makeText(this, "Time's up! Robot stopped.", Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    public void sendCommand(String command) {
+        if (bluetoothManager.isConnected()) {
+            bluetoothManager.sendMessage(command);
+        } else {
+            Log.d(TAG, "Cannot send - not connected: " + command);
+        }
+    }
+
+    // ============================================================
+    // TILT CONTROL (SENSOR LISTENER)
+    // ============================================================
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (tiltController != null) {
+            tiltController.onSensorChanged(event);
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // Not needed
+    }
+
+    // ============================================================
+    // ACTION BAR & SETTINGS
+    // ============================================================
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -412,15 +677,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         deviceNameMenuItem = menu.findItem(R.id.deviceNameTxt);
         MenuItem item = menu.findItem(R.id.connectBtn);
         connectButton = Objects.requireNonNull(item.getActionView()).findViewById(R.id.connectBtn);
+
         connectButton.setOnClickListener(v -> {
-            if (!isConnected) {
+            if (!bluetoothManager.isConnected()) {
                 checkPermissionsAndConnect();
             } else {
-                disconnect();
+                bluetoothManager.disconnect();
             }
         });
-        updateActionBarMenuItem();
-        applyColourBlindMode();
+
+        updateActionBarMenuItem(null);
+        uiManager.applyColorBlindMode();
         return true;
     }
 
@@ -433,26 +700,49 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         return super.onOptionsItemSelected(item);
     }
 
+    private void updateActionBarMenuItem(String deviceName) {
+        if (deviceNameMenuItem != null) {
+            if (bluetoothManager.isConnected() && deviceName != null) {
+                deviceNameMenuItem.setTitle(deviceName);
+                deviceNameMenuItem.setVisible(true);
+            } else {
+                deviceNameMenuItem.setVisible(false);
+            }
+        }
+    }
+
     private void showSettingsDialog() {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_settings, null);
-
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setView(dialogView)
                 .setCancelable(true)
                 .create();
 
         if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(
-                    new ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         }
 
+        setupSettingsDialog(dialogView, dialog);
+
+        dialog.show();
+        if (dialog.getWindow() != null) {
+            int width = (int)(getResources().getDisplayMetrics().widthPixels * 0.85);
+            dialog.getWindow().setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+    }
+
+    private void setupSettingsDialog(View dialogView, AlertDialog dialog) {
         LinearLayout optionLight = dialogView.findViewById(R.id.optionLight);
-        LinearLayout optionDark  = dialogView.findViewById(R.id.optionDark);
-        RadioButton  radioLight  = dialogView.findViewById(R.id.radioLight);
-        RadioButton radioDark   = dialogView.findViewById(R.id.radioDark);
-        Button       btnClose    = dialogView.findViewById(R.id.btnCloseSettings);
+        LinearLayout optionDark = dialogView.findViewById(R.id.optionDark);
+        RadioButton radioLight = dialogView.findViewById(R.id.radioLight);
+        RadioButton radioDark = dialogView.findViewById(R.id.radioDark);
+        SwitchCompat colourBlindSwitch = dialogView.findViewById(R.id.colourBlindSwitch);
+        Spinner languageSpinner = dialogView.findViewById(R.id.languageSpinner);
+        Button btnClose = dialogView.findViewById(R.id.btnCloseSettings);
 
         SharedPreferences prefs = getSharedPreferences("settings", MODE_PRIVATE);
+
+        // Theme
         boolean isDark = prefs.getBoolean("dark_mode", false);
         radioLight.setChecked(!isDark);
         radioDark.setChecked(isDark);
@@ -461,8 +751,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             radioLight.setChecked(true);
             radioDark.setChecked(false);
             prefs.edit().putBoolean("dark_mode", false).apply();
-            AppCompatDelegate.setDefaultNightMode(
-                    AppCompatDelegate.MODE_NIGHT_NO);
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
             dialog.dismiss();
         });
 
@@ -470,55 +759,40 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             radioDark.setChecked(true);
             radioLight.setChecked(false);
             prefs.edit().putBoolean("dark_mode", true).apply();
-            AppCompatDelegate.setDefaultNightMode(
-                    AppCompatDelegate.MODE_NIGHT_YES);
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
             dialog.dismiss();
         });
 
-        btnClose.setOnClickListener(v -> dialog.dismiss());
-
-        dialog.show();
-
-        if (dialog.getWindow() != null) {
-            int width = (int)(getResources().getDisplayMetrics().widthPixels * 0.85);
-            dialog.getWindow().setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
-
-        SwitchCompat colourBlindSwitch = dialogView.findViewById(R.id.colourBlindSwitch);
+        // Color Blind Mode
         colourBlindSwitch.setChecked(prefs.getBoolean("colour_blind_mode", false));
         colourBlindSwitch.setOnCheckedChangeListener((btn, isChecked) -> {
             prefs.edit().putBoolean("colour_blind_mode", isChecked).apply();
-            applyColourBlindMode();
+            uiManager.applyColorBlindMode();
         });
 
-        // Language spinner setup
-        Spinner languageSpinner = dialogView.findViewById(R.id.languageSpinner);
+        // Language
+        setupLanguageSpinner(languageSpinner, prefs, dialog);
 
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+    }
+
+    private void setupLanguageSpinner(Spinner languageSpinner, SharedPreferences prefs, AlertDialog dialog) {
         String[] languages = {"English 英文", "Chinese 中文"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this,
-                R.layout.spinner_item,
-                languages
-        );
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.spinner_item, languages);
         adapter.setDropDownViewResource(R.layout.spinner_item);
         languageSpinner.setAdapter(adapter);
 
-// Restore saved language
         String savedLang = prefs.getString("language", "en");
         languageSpinner.setSelection(savedLang.equals("zh") ? 1 : 0);
 
-// On selection
         languageSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String langCode = position == 1 ? "zh" : "en";
                 String currentLang = prefs.getString("language", "en");
 
-                // Only apply if changed
                 if (!langCode.equals(currentLang)) {
                     prefs.edit().putString("language", langCode).apply();
-
-                    // Apply locale and restart activity
                     Locale locale = new Locale(langCode);
                     Locale.setDefault(locale);
                     dialog.dismiss();
@@ -539,564 +813,16 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         super.attachBaseContext(LocaleContextWrapper.wrap(base, locale));
     }
 
-    private void updateActionBarMenuItem() {
-        if (deviceNameMenuItem != null) {
-            if (isConnected && connectedDeviceName != null) {
-                deviceNameMenuItem.setTitle(connectedDeviceName);
-                deviceNameMenuItem.setVisible(true);
-                connectButton.setText(R.string.btn_disconnect);
-                connectButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#F44336"))); //Red
-            } else {
-                deviceNameMenuItem.setVisible(false);
-                connectButton.setText(R.string.btn_connect);
-                connectButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4CAF50"))); //Green
-            }
-        }
+    private void restoreThemePreference() {
+        SharedPreferences prefs = getSharedPreferences("settings", MODE_PRIVATE);
+        boolean isDark = prefs.getBoolean("dark_mode", false);
+        AppCompatDelegate.setDefaultNightMode(
+                isDark ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
     }
 
     // ============================================================
-    // C.6 & C.7: OBSTACLE BLUETOOTH TRANSMISSION
+    // PERMISSIONS
     // ============================================================
-
-    private JSONObject buildObstaclesJSON(List<Obstacle> obstacles) throws JSONException {
-        JSONObject message = new JSONObject();
-        message.put("cat", "obstacles");
-
-        JSONObject value = new JSONObject();
-        JSONArray obstaclesArray = new JSONArray();
-
-        for (Obstacle obs : obstacles) {
-            obstaclesArray.put(formatObstacleJSON(obs));
-        }
-
-        value.put("obstacles", obstaclesArray);
-        value.put("mode", "0");
-        message.put("value", value);
-
-        return message;
-    }
-
-    private void sendAllObstaclesToRobot() throws JSONException {
-        List<Obstacle> obstacles = arenaMapView.getObstacles();
-
-        if (!isConnected) {
-            Toast.makeText(this, "Not connected to robot", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (obstacles.isEmpty()) {
-            Toast.makeText(this, "No obstacles to send", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // Build JSON object with all obstacles
-        JSONObject message = buildObstaclesJSON(obstacles);
-        sendCommand(message.toString());
-        Toast.makeText(this, "Sent " + obstacles.size() + " obstacle(s) to robot", Toast.LENGTH_SHORT).show();
-        Log.d(TAG, "Sent " + obstacles.size() + " obstacles to robot");
-    }
-
-    public JSONObject formatObstacleJSON(Obstacle obs) throws JSONException {
-        JSONObject json = new JSONObject();
-        int direction;
-
-        switch(obs.getTargetFace().toString()){
-            case"EAST":
-                direction = 2;
-                break;
-            case "SOUTH":
-                direction = 4;
-                break;
-            case"WEST":
-                direction = 6;
-                break;
-            default:
-                direction = 0;
-        }
-
-        json.put("x", obs.getGridX());
-        json.put("y", obs.getGridY());
-        json.put("id", obs.getId());
-        json.put("d", direction);
-        return json;
-    }
-
-    // ============================================================
-    // OBSTACLE DIALOGS
-    // ============================================================
-
-    private void showAddObstacleDialog() {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_edit_obstacle, null);
-
-        TextView titleText = dialogView.findViewById(R.id.obstacleIdText);
-        titleText.setText(R.string.dialog_add_obstacle);
-
-        EditText widthInput = dialogView.findViewById(R.id.widthInput);
-        EditText heightInput = dialogView.findViewById(R.id.heightInput);
-        Spinner faceSpinner = dialogView.findViewById(R.id.faceSpinner);
-
-        String[] directions = {"North", "South", "East", "West"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, directions);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        faceSpinner.setAdapter(adapter);
-
-        widthInput.setText("1");
-        heightInput.setText("1");
-
-        new AlertDialog.Builder(this)
-                .setTitle("Add Obstacle")
-                .setView(dialogView)
-                .setPositiveButton("Add", (dialog, which) -> {
-                    try {
-                        int width = Integer.parseInt(widthInput.getText().toString());
-                        int height = Integer.parseInt(heightInput.getText().toString());
-                        String selectedFace = (String) faceSpinner.getSelectedItem();
-
-                        width = Math.max(1, Math.min(width, arenaMapView.getGridSize()));
-                        height = Math.max(1, Math.min(height, arenaMapView.getGridSize()));
-
-                        int gridX = (arenaMapView.getGridSize() - width) / 2;
-                        int gridY = (arenaMapView.getGridSize() - height) / 2;
-
-                        Obstacle obstacle = new Obstacle(gridX, gridY, width, height);
-                        obstacle.setTargetFace(Obstacle.Direction.fromDisplayName(selectedFace));
-
-                        arenaMapView.addObstacle(obstacle);
-                        arenaMapView.setSelectedObstacle(obstacle);
-
-                        sendAllObstaclesToRobot();
-
-                        Toast.makeText(this, "Obstacle added. Drag to position.", Toast.LENGTH_SHORT).show();
-                    } catch (NumberFormatException e) {
-                        Toast.makeText(this, "Invalid dimensions", Toast.LENGTH_SHORT).show();
-                    } catch (JSONException e) {
-                        Log.e(TAG, "Failed to send obstacle update after creation", e);
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void showEditObstacleDialog(Obstacle obstacle) {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_edit_obstacle, null);
-
-        TextView titleText = dialogView.findViewById(R.id.obstacleIdText);
-        titleText.setText("Obstacle #" + obstacle.getId());
-
-        EditText widthInput = dialogView.findViewById(R.id.widthInput);
-        EditText heightInput = dialogView.findViewById(R.id.heightInput);
-        Spinner faceSpinner = dialogView.findViewById(R.id.faceSpinner);
-
-        String[] directions = {"North", "South", "East", "West"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, directions);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        faceSpinner.setAdapter(adapter);
-
-        widthInput.setText(String.valueOf(obstacle.getWidth()));
-        heightInput.setText(String.valueOf(obstacle.getHeight()));
-
-        for (int i = 0; i < directions.length; i++) {
-            if (directions[i].equals(obstacle.getTargetFace().getDisplayName())) {
-                faceSpinner.setSelection(i);
-                break;
-            }
-        }
-
-        new AlertDialog.Builder(this)
-                .setTitle("Edit Obstacle")
-                .setView(dialogView)
-                .setPositiveButton("Save", (dialog, which) -> {
-                    try {
-                        int width = Integer.parseInt(widthInput.getText().toString());
-                        int height = Integer.parseInt(heightInput.getText().toString());
-                        String selectedFace = (String) faceSpinner.getSelectedItem();
-
-                        width = Math.max(1, Math.min(width, arenaMapView.getGridSize()));
-                        height = Math.max(1, Math.min(height, arenaMapView.getGridSize()));
-
-                        obstacle.setWidth(width);
-                        obstacle.setHeight(height);
-                        obstacle.setTargetFace(Obstacle.Direction.fromDisplayName(selectedFace));
-
-                        if (obstacle.getGridX() + width > arenaMapView.getGridSize()) {
-                            obstacle.setGridX(arenaMapView.getGridSize() - width);
-                        }
-                        if (obstacle.getGridY() + height > arenaMapView.getGridSize()) {
-                            obstacle.setGridY(arenaMapView.getGridSize() - height);
-                        }
-
-                        arenaMapView.updateObstacle(obstacle);
-                        Toast.makeText(this, "Obstacle updated", Toast.LENGTH_SHORT).show();
-                        try {
-                            sendAllObstaclesToRobot();
-                        } catch (JSONException ex) {
-                            Log.e(TAG, "Failed to send obstacle update after edit", ex);
-                        }
-                    } catch (NumberFormatException e) {
-                        Toast.makeText(this, "Invalid dimensions", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    // ============================================================
-    // ArenaMapView.OnObstacleActionListener implementation
-    // ============================================================
-
-    @Override
-    public void onObstacleLongPress(Obstacle obstacle) {
-        showEditObstacleDialog(obstacle);
-    }
-
-    @Override
-    public void onObstacleSelected(Obstacle obstacle) {
-        Log.d(TAG, "Selected obstacle: " + obstacle);
-    }
-
-    @Override
-    public void onObstaclePositionChanged(Obstacle obstacle) {
-        Log.d(TAG, "Obstacle moved: " + obstacle);
-        try {
-            sendAllObstaclesToRobot();
-        } catch (JSONException e) {
-            Log.e(TAG, "Failed to send obstacle update after move", e);
-        }
-    }
-
-    @Override
-    public void onObstacleRemovedByDrag(Obstacle obstacle) {
-        Log.d(TAG, "Obstacle removed by drag: " + obstacle);
-        try {
-            sendAllObstaclesToRobot();
-            Toast.makeText(this, "Obstacle #" + obstacle.getId() + " removed", Toast.LENGTH_SHORT).show();
-        } catch (JSONException e) {
-            Log.e(TAG, "Failed to send obstacle update after removed by drag", e);
-        }
-    }
-
-    @Override
-    public void onRobotPositionChanged(Robot robot) {
-        Log.d("ROBOT", "Robot moved: " + robot);
-        // Update position and direction displays
-        if (robot != null) {
-            positionText.setText(robot.getGridX() + "," + robot.getGridY());
-            directionText.setText(robot.getFacing().name());
-        } else {
-            positionText.setText("-");
-            directionText.setText("-");
-        }
-    }
-
-    @Override
-    public void onEmptyCellTap(int gridX, int gridY) {
-        Log.d(TAG, "Empty cell tapped: (" + gridX + ", " + gridY + ")");
-    }
-
-    // ============================================================
-    // BLUETOOTH CONNECTION MANAGEMENT
-    // ============================================================
-
-    private void startListeningOnStartup() {
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
-                        != PackageManager.PERMISSION_GRANTED) {
-                    Log.d(TAG, "Bluetooth permission not granted yet");
-                    return;
-                }
-            }
-
-            if (!isConnected) {
-                bluetoothService.startServer();
-                Log.d(TAG, "Started listening for incoming connections");
-            }
-        }, 500);
-    }
-
-    private final Handler messageHandler = new Handler(Looper.getMainLooper()) {
-        @Override
-        public void handleMessage(@NonNull Message msg) {
-            switch (msg.what) {
-                case BluetoothService.MESSAGE_READ:
-                    String receivedMessage = (String) msg.obj;
-                    handleIncomingMessage(receivedMessage);
-                    break;
-
-                case BluetoothService.MESSAGE_WRITE:
-                    String sentMessage = (String) msg.obj;
-                    logMessage("Sent: " + sentMessage, "#1976D2");
-                    break;
-
-                case BluetoothService.MESSAGE_DISCONNECTED:
-                    handleDisconnection();
-                    break;
-
-                case BluetoothService.MESSAGE_CONNECTED:
-                    handleIncomingConnection();
-                    break;
-            }
-        }
-    };
-
-    // ============================================================
-    // STARTING TIMER
-    // ============================================================
-    private Runnable timerRunnable = new Runnable() {
-        @Override
-        public void run() {
-            long elapsedMillis = System.currentTimeMillis() - startTime;
-
-            // Check if 5:55 minutes reached
-            if (elapsedMillis >= MAX_TIME_MILLIS) {
-                elapsedMillis = MAX_TIME_MILLIS; // Cap at 5 minutes
-                stopTimer();
-                sendCommand("{\"cat\": \"control\", \"value\": \"stop\"}");
-                resetExploreButtonUI();
-                resetFastestPathButtonUI();
-                return; // Stop the runnable
-            }
-
-            int seconds = (int) (elapsedMillis / 1000);
-            int minutes = seconds / 60;
-            seconds = seconds % 60;
-            int millis = (int) (elapsedMillis % 1000) / 10;
-
-            timerText.setText(String.format("%02d:%02d:%02d", minutes, seconds, millis));
-
-            timerHandler.postDelayed(this, 10); // Update every 10ms
-        }
-    };
-
-    private void stopTimer() {
-        timerHandler.removeCallbacks(timerRunnable);
-        isTimerRunning = false;
-    }
-
-    // ==================== UI RESET FUNCTIONS ====================
-
-    private void resetExploreButtonUI() {
-        exploreButton.setBackground(getDrawable(R.drawable.bg_action_mint));
-        exploreButton.setTextColor(getColor(R.color.mint));
-    }
-
-    private void resetFastestPathButtonUI() {
-        fastestPathButton.setBackground(getDrawable(R.drawable.bg_action_mint));
-        fastestPathButton.setTextColor(getColor(R.color.mint));
-    }
-
-    private void resetTimer() {
-        stopTimer();
-        timerText.setText("00:00:00");
-    }
-
-    private void resetAllObstacles() {
-        List<Obstacle> obstacles = arenaMapView.getObstacles();
-
-        for (Obstacle obstacle : obstacles) {
-            obstacle.setRecognizedTargetId(null); // Clear the recognized target
-        }
-
-        arenaMapView.invalidate(); // Redraw to show cleared state
-        Log.d(TAG, "All obstacle recognitions cleared");
-    }
-
-    private void resetAll() {
-        // Reset UI
-        resetExploreButtonUI();
-        resetFastestPathButtonUI();
-        resetTimer();
-        resetAllObstacles();
-
-    }
-
-    // ============================================================
-    // MESSAGE PARSING (C.4, C.9, C.10)
-    // ============================================================
-
-    private void handleIncomingMessage(String message) {
-        logMessage("Received: " + message, "#388E3C");
-
-        // Parse different message types
-        if (message.contains("status")) {
-            handleStatusUpdate(message);
-        } else if (message.contains("image-rec")) {
-            handleTargetMessage(message);
-        } else if (message.contains("location")) {
-            handleRobotMessage(message);
-        }
-    }
-
-    /**
-     * Handle STATUS message (C.4)
-     */
-    private void handleStatusUpdate(String message) {
-        try {
-            JSONObject json = new JSONObject(message);
-
-            JSONObject value = json.getJSONObject("value");
-            String statusMsg = value.getString("robot_status");
-            robotStatusText.setText(statusMsg);
-
-            if(statusMsg.equals("finished")) {
-                stopTimer();
-            }
-
-        } catch (JSONException e) {
-            Log.d(TAG, "Not a JSON status message: " + message);
-        }
-    }
-
-    /**
-     * Handle TARGET message (C.9)
-     * Format: {"cat": "image-rec", "value": {"image_id": <Target ID>, "obstacle_id":  <Obstacle Number>}}
-     */
-    private void handleTargetMessage(String message) {
-        try {
-            JSONObject json = new JSONObject(message);
-
-            JSONObject value = json.getJSONObject("value");
-            String receivedId  = value.getString("image_id");
-            int obstacleNumber = value.getInt("obstacle_id");
-
-            String displayId = ImageIdMapper.mapImageId(receivedId);
-
-            Obstacle obstacle = findObstacleById(obstacleNumber);
-            if (obstacle != null) {
-                obstacle.setRecognizedTargetId(displayId);
-                arenaMapView.updateObstacle(obstacle);
-                Toast.makeText(this, "Target " + displayId + " identified on Obstacle #" + obstacleNumber,
-                        Toast.LENGTH_SHORT).show();
-                Log.d(TAG, "Updated Obstacle #" + obstacleNumber + " with Target ID: " + displayId);
-            } else {
-                Log.w(TAG, "Obstacle #" + obstacleNumber + " not found");
-            }
-        } catch (JSONException e) {
-            Log.e(TAG, "Failed to parse TARGET message: " + message, e);
-        }
-    }
-
-    /**
-     * Handle ROBOT message (C.10)
-     * Format: {"cat": "location", "value": {"x": <x>, "y": <y>, "d": <direction>}}
-     */
-    private void handleRobotMessage(String message) {
-        try {
-            JSONObject json = new JSONObject(message);
-
-            JSONObject value = json.getJSONObject("value");
-            int x = value.getInt("x");
-            int y = value.getInt("y");
-            int d = value.getInt("d");
-
-            // Convert numeric direction to Direction enum
-            Robot.Direction direction =  Robot.Direction.fromNumeric(d);
-
-            int gridSize = arenaMapView.getGridSize();
-            if (x < 0 || x > gridSize - Robot.SIZE || y < 0 || y > gridSize - Robot.SIZE) {
-                Log.w(TAG, "ROBOT coordinates out of bounds: (" + x + ", " + y + ")");
-                return;
-            }
-
-            arenaMapView.updateRobotPosition(x, y, direction);
-            positionText.setText(x + "," + y);
-            directionText.setText(direction.name());
-
-            Log.d(TAG, "Robot updated: position=(" + x + ", " + y + "), facing=" + direction);
-        } catch (JSONException e) {
-            Log.e(TAG, "Failed to parse ROBOT message: " + message, e);
-        }
-    }
-
-    private Obstacle findObstacleById(int id) {
-        for (Obstacle obs : arenaMapView.getObstacles()) {
-            if (obs.getId() == id) {
-                return obs;
-            }
-        }
-        return null;
-    }
-
-    private void logMessage(String message, String colorHex) {
-        String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-        String currentText = receivedText.getText().toString();
-
-        if (currentText.equals("Waiting for data...")) {
-            currentText = "";
-        }
-
-        String newText = "[" + timestamp + "] " + message + "\n" + currentText;
-
-        String[] lines = newText.split("\n");
-        if (lines.length > 20) {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < 20; i++) {
-                sb.append(lines[i]).append("\n");
-            }
-            newText = sb.toString();
-        }
-
-        receivedText.setText(newText);
-    }
-
-    private void clearMessages() {
-        Toast.makeText(this, "Messages cleared", Toast.LENGTH_SHORT).show();
-    }
-
-    private void updateConnectionStatus(boolean connected, String deviceName) {
-        isConnected = connected;
-        connectedDeviceName = connected ? deviceName : null;
-
-        updateActionBarMenuItem();
-
-        if (connected) {
-            upButton.setEnabled(true);
-            downButton.setEnabled(true);
-            leftButton.setEnabled(true);
-            rightButton.setEnabled(true);
-            tiltControlSwitch.setEnabled(true);
-            sendButton.setEnabled(true);
-        } else {
-            upButton.setEnabled(false);
-            downButton.setEnabled(false);
-            leftButton.setEnabled(false);
-            rightButton.setEnabled(false);
-            tiltControlSwitch.setEnabled(false);
-            tiltControlSwitch.setChecked(false);
-            sendButton.setEnabled(false);
-            disableTiltControl();
-        }
-    }
-
-    private void handleIncomingConnection() {
-        String deviceName = "Device";
-
-        try {
-            if (bluetoothService.socket != null && bluetoothService.socket.getRemoteDevice() != null) {
-                deviceName = bluetoothService.socket.getRemoteDevice().getName();
-                if (deviceName == null || deviceName.isEmpty()) {
-                    deviceName = bluetoothService.socket.getRemoteDevice().getAddress();
-                }
-            }
-        } catch (SecurityException e) {
-            Log.e(TAG, "Permission denied getting device name", e);
-            deviceName = "Connected Device";
-        }
-
-        updateConnectionStatus(true, deviceName);
-        logMessage("Device connected!", "#4CAF50");
-        Toast.makeText(this, "Device connected!", Toast.LENGTH_SHORT).show();
-    }
-
-    private void handleDisconnection() {
-        updateConnectionStatus(false, "Disconnected");
-        logMessage("Device disconnected!", "#F44336");
-        Toast.makeText(this, "Device disconnected", Toast.LENGTH_SHORT).show();
-
-        bluetoothService.restartServer();
-    }
 
     private void checkPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -1122,183 +848,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 return;
             }
         }
-        showDeviceList();
-    }
-
-    private void showDeviceList() {
-        try {
-            Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
-
-            if (pairedDevices.isEmpty()) {
-                Toast.makeText(this, "No paired devices found. Please pair your device first.",
-                        Toast.LENGTH_LONG).show();
-                return;
-            }
-
-            final ArrayList<BluetoothDevice> deviceList = new ArrayList<>(pairedDevices);
-            String[] deviceNames = new String[deviceList.size()];
-
-            for (int i = 0; i < deviceList.size(); i++) {
-                deviceNames[i] = deviceList.get(i).getName() + "\n" + deviceList.get(i).getAddress();
-            }
-
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("Select Bluetooth Device")
-                    .setItems(deviceNames, (dialog, which) -> {
-                        connectToDevice(deviceList.get(which));
-                    })
-                    .setNegativeButton("Cancel", null)
-                    .show();
-
-        } catch (SecurityException e) {
-            Log.e(TAG, "Permission denied", e);
-            Toast.makeText(this, "Bluetooth permission required", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void connectToDevice(final BluetoothDevice device) {
-        updateConnectionStatus(false, "Connecting...");
-
-        new Thread(() -> {
-            try {
-                BluetoothSocket socket = device.createRfcommSocketToServiceRecord(MY_UUID);
-                bluetoothAdapter.cancelDiscovery();
-                socket.connect();
-
-                runOnUiThread(() -> {
-                    bluetoothService.connect(socket);
-                    updateConnectionStatus(true, device.getName());
-                    logMessage("Connected to " + device.getName(), "#4CAF50");
-                    Toast.makeText(MainActivity.this, "Connected!", Toast.LENGTH_SHORT).show();
-                });
-
-            } catch (IOException e) {
-                Log.e(TAG, "Connection failed", e);
-                runOnUiThread(() -> {
-                    updateConnectionStatus(false, "Connection Failed");
-                    logMessage("Connection failed: " + e.getMessage(), "#F44336");
-                    Toast.makeText(MainActivity.this, "Connection failed", Toast.LENGTH_LONG).show();
-                });
-            } catch (SecurityException e) {
-                Log.e(TAG, "Permission denied", e);
-                runOnUiThread(() -> {
-                    updateConnectionStatus(false, "Permission Denied");
-                });
-            }
-        }).start();
-    }
-
-    private void disconnect() {
-        bluetoothService.stop();
-        updateConnectionStatus(false, "Disconnected");
-        logMessage("Device disconnected!", "#FF9800");
-        bluetoothService.restartServer();
-    }
-
-    private void sendCommand(String command) {
-        if (isConnected) {
-            bluetoothService.write(command);
-        } else {
-            Log.d(TAG, "Cannot send - not connected: " + command);
-        }
-    }
-
-    private void startRobot(){
-        if (!isTimerRunning) {
-            startTime = System.currentTimeMillis();
-            timerHandler.postDelayed(timerRunnable, 0);
-            isTimerRunning = true;
-        }
-        sendCommand("{\"cat\": \"control\", \"value\": \"start\"}");
-    }
-
-    private void stopRobot(){
-        stopTimer();
-        sendCommand("{\"cat\": \"control\", \"value\": \"stop\"}");
-
-        //update ui
-        //TODO: update UI with color blind palette
-        exploreButton.setBackground(getDrawable(R.drawable.bg_action_mint));
-        exploreButton.setTextColor(getColor(R.color.mint));
-        fastestPathButton.setBackground(getDrawable(R.drawable.bg_action_mint));
-        fastestPathButton.setTextColor(getColor(R.color.mint));
-    }
-
-    // ============================================================
-    // TILT CONTROL (C.3)
-    // ============================================================
-
-    private void enableTiltControl() {
-        if (accelerometer != null && isConnected) {
-            isTiltControlEnabled = true;
-            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
-            Toast.makeText(this, "Tilt control enabled", Toast.LENGTH_SHORT).show();
-
-            upButton.setEnabled(false);
-            downButton.setEnabled(false);
-            leftButton.setEnabled(false);
-            rightButton.setEnabled(false);
-
-        } else if (!isConnected) {
-            tiltControlSwitch.setChecked(false);
-            Toast.makeText(this, "Connect to a device first", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void disableTiltControl() {
-        if (isTiltControlEnabled) {
-            isTiltControlEnabled = false;
-            sensorManager.unregisterListener(this);
-
-            if (isConnected) {
-                upButton.setEnabled(true);
-                downButton.setEnabled(true);
-                leftButton.setEnabled(true);
-                rightButton.setEnabled(true);
-            }
-        }
-    }
-
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-        if (!isTiltControlEnabled || !isConnected) {
-            return;
-        }
-
-        long currentTime = System.currentTimeMillis();
-
-        if (currentTime - lastTiltCommandTime < TILT_COMMAND_INTERVAL) {
-            return;
-        }
-
-        float x = event.values[0];
-        float y = event.values[1];
-
-        String command = null;
-
-        if (Math.abs(y) > Math.abs(x)) {
-            if (y < -TILT_THRESHOLD) {
-                command = "move:up";
-            } else if (y > TILT_THRESHOLD) {
-                command = "move:down";
-            }
-        } else {
-            if (x > TILT_THRESHOLD) {
-                command = "move:left";
-            } else if (x < -TILT_THRESHOLD) {
-                command = "move:right";
-            }
-        }
-
-        if (command != null) {
-            sendCommand(command);
-            lastTiltCommandTime = currentTime;
-        }
-    }
-
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        // Not needed
+        bluetoothManager.showDeviceSelectionDialog();
     }
 
     @Override
@@ -1310,18 +860,40 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(this, "Bluetooth permission granted", Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(this, "Bluetooth permission is required for this app",
-                        Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Bluetooth permission required", Toast.LENGTH_LONG).show();
             }
         }
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (bluetoothService != null) {
-            bluetoothService.stop();
+    // ============================================================
+    // UTILITY METHODS
+    // ============================================================
+
+    private void logMessage(String message, String colorHex) {
+        String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
+        String currentText = receivedText.getText().toString();
+
+        if (currentText.equals("Waiting for data...")) {
+            currentText = "";
         }
-        disableTiltControl();
+
+        String newText = "[" + timestamp + "] " + message + "\n" + currentText;
+
+        // Keep last 20 messages
+        String[] lines = newText.split("\n");
+        if (lines.length > 20) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 20; i++) {
+                sb.append(lines[i]).append("\n");
+            }
+            newText = sb.toString();
+        }
+
+        receivedText.setText(newText);
+    }
+
+    private void clearMessages() {
+        receivedText.setText("Waiting for data...");
+        Toast.makeText(this, "Messages cleared", Toast.LENGTH_SHORT).show();
     }
 }
