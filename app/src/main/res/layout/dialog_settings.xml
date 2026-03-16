@@ -102,6 +102,35 @@
 
     </LinearLayout>
 
+    <!-- Colour Blind toggle row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_card_lg"
+        android:gravity="center_vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:layout_marginBottom="20dp"
+        android:elevation="1dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Colour Blind Mode"
+            android:textSize="14sp"
+            android:textColor="@color/ink"/>
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/colourBlindSwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:thumbTint="@color/sky"
+            android:trackTint="@color/sky_soft"/>
+
+    </LinearLayout>
+
     <!-- LANGUAGE label -->
     <TextView
         android:layout_width="wrap_content"

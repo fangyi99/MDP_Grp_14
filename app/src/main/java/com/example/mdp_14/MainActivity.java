@@ -8,7 +8,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
-import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.hardware.Sensor;
@@ -34,7 +33,6 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.Spinner;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
@@ -43,6 +41,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -71,9 +70,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private String connectedDeviceName = null;
     private Button connectButton;
 
-    // Settings
-    private Button settingsBtn;
-
     // UI Elements - Status displays
     private TextView robotStatusText;
     private TextView positionText;
@@ -88,7 +84,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private Button downButton;
     private Button leftButton;
     private Button rightButton;
-    private Switch tiltControlSwitch;
+    private SwitchCompat tiltControlSwitch;
 
     // UI Elements - Arena Map (C.5, C.6, C.7)
     private ArenaMapView arenaMapView;
@@ -146,11 +142,20 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Restore dark/light mode BEFORE setContentView
+        SharedPreferences prefs = getSharedPreferences("settings", MODE_PRIVATE);
+        boolean isDark = prefs.getBoolean("dark_mode", false);
+        AppCompatDelegate.setDefaultNightMode(
+                isDark ? AppCompatDelegate.MODE_NIGHT_YES
+                        : AppCompatDelegate.MODE_NIGHT_NO);
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         // Initialize UI elements
         initializeViews();
+
+        applyColourBlindMode();
 
         // Initialize sensor manager for tilt control (C.3)
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
@@ -177,6 +182,38 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         // Auto-start listening for incoming connections
         startListeningOnStartup();
+    }
+    private void applyColourBlindMode() {
+        SharedPreferences prefs = getSharedPreferences("settings", MODE_PRIVATE);
+        boolean cbMode = prefs.getBoolean("colour_blind_mode", false);
+
+        if (cbMode) {
+            // Override each UI element's color manually
+            exploreButton.setTextColor(ContextCompat.getColor(this, R.color.cb_mint));
+            exploreButton.setBackground(ContextCompat.getDrawable(this, R.drawable.bg_action_cb_mint));
+            fastestPathButton.setTextColor(ContextCompat.getColor(this, R.color.cb_mint));
+            fastestPathButton.setBackground(ContextCompat.getDrawable(this, R.drawable.bg_action_cb_mint));
+            deleteObstacleButton.setTextColor(ContextCompat.getColor(this, R.color.cb_coral));
+            clearAllButton.setTextColor(ContextCompat.getColor(this, R.color.cb_coral));
+            stopButton.setTextColor(ContextCompat.getColor(this, R.color.cb_coral));
+              if (connectButton != null) {
+                  connectButton.setBackgroundTintList(ColorStateList.valueOf(
+                          ContextCompat.getColor(this, R.color.cb_mint)));
+              }
+        } else {
+            // Reset to normal colors when turning off
+            exploreButton.setTextColor(ContextCompat.getColor(this, R.color.mint));
+            exploreButton.setBackground(ContextCompat.getDrawable(this, R.drawable.bg_action_mint));
+            fastestPathButton.setTextColor(ContextCompat.getColor(this, R.color.mint));
+            fastestPathButton.setBackground(ContextCompat.getDrawable(this, R.drawable.bg_action_mint));
+            deleteObstacleButton.setTextColor(ContextCompat.getColor(this, R.color.coral));
+            clearAllButton.setTextColor(ContextCompat.getColor(this, R.color.coral));
+            stopButton.setTextColor(ContextCompat.getColor(this, R.color.coral));
+            if (connectButton != null) {
+                connectButton.setBackgroundTintList(ColorStateList.valueOf(
+                        ContextCompat.getColor(this, R.color.mint)));
+            }
+        }
     }
 
     private void initializeViews() {
@@ -380,6 +417,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         });
         updateActionBarMenuItem();
+        applyColourBlindMode();
         return true;
     }
 
@@ -443,6 +481,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             dialog.getWindow().setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
         }
 
+        SwitchCompat colourBlindSwitch = dialogView.findViewById(R.id.colourBlindSwitch);
+        colourBlindSwitch.setChecked(prefs.getBoolean("colour_blind_mode", false));
+        colourBlindSwitch.setOnCheckedChangeListener((btn, isChecked) -> {
+            prefs.edit().putBoolean("colour_blind_mode", isChecked).apply();
+            applyColourBlindMode();
+        });
+
         // Language spinner setup
         Spinner languageSpinner = dialogView.findViewById(R.id.languageSpinner);
 
@@ -473,19 +518,22 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     // Apply locale and restart activity
                     Locale locale = new Locale(langCode);
                     Locale.setDefault(locale);
-                    Configuration config = new Configuration();
-                    config.setLocale(locale);
-                    getResources().updateConfiguration(config,
-                            getResources().getDisplayMetrics());
-
                     dialog.dismiss();
-                    recreate(); // rebuild activity with new language
+                    recreate();
                 }
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {}
         });
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        SharedPreferences prefs = base.getSharedPreferences("settings", MODE_PRIVATE);
+        String lang = prefs.getString("language", "en");
+        Locale locale = new Locale(lang);
+        super.attachBaseContext(LocaleContextWrapper.wrap(base, locale));
     }
 
     private void updateActionBarMenuItem() {
@@ -848,9 +896,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
      */
     private void handleStatusUpdate(String message) {
         try {
-//            JSONObject json = new JSONObject(message);
-//            String statusMsg = json.getString("status").toUpperCase();
-
             JSONObject json = new JSONObject(message);
 
             JSONObject value = json.getJSONObject("value");
@@ -1127,6 +1172,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         sendCommand("{\"cat\": \"control\", \"value\": \"stop\"}");
 
         //update ui
+        //TODO: update UI with color blind palette
         exploreButton.setBackground(getDrawable(R.drawable.bg_action_mint));
         exploreButton.setTextColor(getColor(R.color.mint));
         fastestPathButton.setBackground(getDrawable(R.drawable.bg_action_mint));

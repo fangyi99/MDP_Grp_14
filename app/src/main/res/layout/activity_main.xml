@@ -492,7 +492,7 @@
                     android:textColor="@color/ink_mid"
                     android:layout_marginEnd="4dp"/>
 
-                <Switch
+                <androidx.appcompat.widget.SwitchCompat
                     android:id="@+id/tiltControlSwitch"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"/>
