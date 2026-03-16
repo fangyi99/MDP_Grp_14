@@ -449,10 +449,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         String[] languages = {"English 英文", "Chinese 中文"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
                 this,
-                android.R.layout.simple_spinner_item,
+                R.layout.spinner_item,
                 languages
         );
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        adapter.setDropDownViewResource(R.layout.spinner_item);
         languageSpinner.setAdapter(adapter);
 
 // Restore saved language

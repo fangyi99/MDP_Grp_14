@@ -4,7 +4,7 @@
     <color name="bg_system">#0A0F1E</color>
     <color name="bg_card">#131C30</color>
     <color name="bg_inset">#0D1526</color>
-    <color name="bg_glass">#50131C30</color>
+    <color name="bg_glass">#131C30</color>
     <color name="bg_glass_stroke">#2A5B96FF</color>
 
     <!-- Ink / Text — flipped from dark to light -->
