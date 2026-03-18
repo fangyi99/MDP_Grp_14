@@ -14,6 +14,8 @@ import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 
+import androidx.core.content.ContextCompat;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -404,33 +406,156 @@ public class ArenaMapView extends View {
         canvas.drawRect(indicatorRect, targetIndicatorPaint);
     }
 
+    private Bitmap createRobotBitmap(int sizePx) {
+        Bitmap bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+
+        float cx = sizePx / 2f;
+        float cy = sizePx / 2f;
+        float w  = sizePx * 0.82f;   // slightly smaller front by making overall narrower
+        float h  = sizePx * 0.88f;
+
+        float T  = cy - h * 0.44f;
+        float B  = cy + h * 0.44f;
+        // Front is now smaller — reduce hw slightly
+        float hw = w * 0.38f;        // was 0.45f — makes front narrower
+
+        int carColor  = ContextCompat.getColor(getContext(), R.color.sky);
+        int darkColor = ContextCompat.getColor(getContext(), R.color.ink);
+
+        Paint bodyPaint  = new Paint(Paint.ANTI_ALIAS_FLAG); bodyPaint.setColor(carColor); bodyPaint.setStyle(Paint.Style.FILL);
+        Paint darkPaint  = new Paint(Paint.ANTI_ALIAS_FLAG); darkPaint.setColor(darkColor); darkPaint.setStyle(Paint.Style.FILL);
+        Paint glassPaint = new Paint(Paint.ANTI_ALIAS_FLAG); glassPaint.setColor(Color.parseColor("#A0C8FF")); glassPaint.setStyle(Paint.Style.FILL);
+        Paint tyrePaint  = new Paint(Paint.ANTI_ALIAS_FLAG); tyrePaint.setColor(Color.parseColor("#111111")); tyrePaint.setStyle(Paint.Style.FILL);
+        Paint rimPaint   = new Paint(Paint.ANTI_ALIAS_FLAG); rimPaint.setColor(Color.parseColor("#CCCCCC")); rimPaint.setStyle(Paint.Style.FILL);
+        Paint whitePaint = new Paint(Paint.ANTI_ALIAS_FLAG); whitePaint.setColor(Color.WHITE); whitePaint.setStyle(Paint.Style.FILL);
+        Paint glowOut    = new Paint(Paint.ANTI_ALIAS_FLAG); glowOut.setColor(Color.parseColor("#2200FFB2")); glowOut.setStyle(Paint.Style.FILL);
+        Paint glowMid    = new Paint(Paint.ANTI_ALIAS_FLAG); glowMid.setColor(Color.parseColor("#6600FFB2")); glowMid.setStyle(Paint.Style.FILL);
+        Paint glowCore   = new Paint(Paint.ANTI_ALIAS_FLAG); glowCore.setColor(Color.parseColor("#00FFB2")); glowCore.setStyle(Paint.Style.FILL);
+
+        // ── Main body ──────────────────────────────────────
+        c.drawRoundRect(new RectF(cx - hw, T, cx + hw, B), w * 0.12f, w * 0.12f, bodyPaint);
+
+        // ── Front bumper ───────────────────────────────────
+        c.drawRoundRect(new RectF(cx - hw + 2, T - 4, cx + hw - 2, T + 6), 3, 3, darkPaint);
+        // Bumper vents
+        c.drawRoundRect(new RectF(cx - hw + 5, T - 2, cx - 4, T + 4), 1, 1, tyrePaint);
+        c.drawRoundRect(new RectF(cx + 4, T - 2, cx + hw - 5, T + 4), 1, 1, tyrePaint);
+
+        // ── Hood scoop ─────────────────────────────────────
+        c.drawRoundRect(new RectF(cx - w*0.16f, T + h*0.02f, cx + w*0.16f, T + h*0.11f), 2, 2, darkPaint);
+
+        // ── Roof / cabin ───────────────────────────────────
+        c.drawRoundRect(new RectF(cx - hw + 7, T + h*0.14f, cx + hw - 7, T + h*0.56f), 4, 4, darkPaint);
+        // Windscreen
+        c.drawRoundRect(new RectF(cx - hw + 10, T + h*0.16f, cx + hw - 10, T + h*0.28f), 3, 3, glassPaint);
+        // Rear cabin window
+        c.drawRoundRect(new RectF(cx - hw + 10, T + h*0.42f, cx + hw - 10, T + h*0.53f), 3, 3, glassPaint);
+
+        // ── Rear bumper ────────────────────────────────────
+        c.drawRoundRect(new RectF(cx - hw + 2, B - 5, cx + hw - 2, B + 4), 3, 3, darkPaint);
+
+        // ── Spoiler ────────────────────────────────────────
+        c.drawRect(new RectF(cx - hw + 4, B + 2, cx + hw - 4, B + 7), darkPaint);
+        c.drawRect(new RectF(cx - hw + 4, B - 3, cx - hw + 10, B + 8), darkPaint);
+        c.drawRect(new RectF(cx + hw - 10, B - 3, cx + hw - 4, B + 8), darkPaint);
+
+        // ── Racing stripes ─────────────────────────────────
+        float sw = w * 0.075f;
+        c.drawRect(new RectF(cx - sw*1.1f, T, cx - sw*0.1f, B), whitePaint);
+        c.drawRect(new RectF(cx + sw*0.1f, T, cx + sw*1.1f, B), whitePaint);
+
+        // ── 4 tyres ────────────────────────────────────────
+        float fTW = w*0.17f, fTH = h*0.17f;
+        float rTW = w*0.21f, rTH = h*0.23f;
+        drawWheelOnCanvas(c, cx - hw - fTW*0.5f, T + fTH*0.9f, fTW, fTH, tyrePaint, rimPaint);
+        drawWheelOnCanvas(c, cx + hw + fTW*0.5f, T + fTH*0.9f, fTW, fTH, tyrePaint, rimPaint);
+        drawWheelOnCanvas(c, cx - hw - rTW*0.5f, B - rTH*0.9f, rTW, rTH, tyrePaint, rimPaint);
+        drawWheelOnCanvas(c, cx + hw + rTW*0.5f, B - rTH*0.9f, rTW, rTH, tyrePaint, rimPaint);
+
+        // ── Glow dot ───────────────────────────────────────
+        float dotY = T + h*0.04f;
+        float cr   = w*0.048f;
+        c.drawCircle(cx, dotY, cr*3.2f, glowOut);
+        c.drawCircle(cx, dotY, cr*1.9f, glowMid);
+        c.drawCircle(cx, dotY, cr,      glowCore);
+
+        return bmp;
+    }
+
+    private void drawWheelOnCanvas(Canvas c, float cx, float cy,
+                                   float w, float h,
+                                   Paint tyrePaint, Paint rimPaint) {
+        Paint tread = new Paint(Paint.ANTI_ALIAS_FLAG);
+        tread.setColor(Color.parseColor("#222222"));
+        tread.setStyle(Paint.Style.STROKE);
+        tread.setStrokeWidth(0.8f);
+
+        Paint hub = new Paint(Paint.ANTI_ALIAS_FLAG);
+        hub.setColor(Color.parseColor("#666666"));
+        hub.setStyle(Paint.Style.FILL);
+
+        c.drawRoundRect(new RectF(cx-w/2, cy-h/2, cx+w/2, cy+h/2), 4, 4, tyrePaint);
+        for (int i = -1; i <= 1; i++)
+            c.drawLine(cx-w/2+2, cy+i*h*0.28f, cx+w/2-2, cy+i*h*0.28f, tread);
+        c.drawCircle(cx, cy, w*0.30f, rimPaint);
+        c.drawCircle(cx, cy, w*0.13f, hub);
+    }
+
     private void drawRobot(Canvas canvas) {
-        if (robot == null || robotBitmap == null) return;
+        if (robot == null) return;
 
         float left = offsetX + robot.getGridX() * cellSize;
-        // Flip Y: gridY=0 at bottom
-        float top = offsetY + (GRID_SIZE - robot.getGridY() - Robot.SIZE) * cellSize;
+        float top  = offsetY + (GRID_SIZE - robot.getGridY() - Robot.SIZE) * cellSize;
         float size = Robot.SIZE * cellSize;
 
-        // Save canvas state for rotation
+        // Regenerate bitmap if size changed
+        int sizePx = (int) size;
+        if (robotBitmap == null || robotBitmap.getWidth() != sizePx) {
+            robotBitmap = createRobotBitmap(sizePx);
+        }
+
         canvas.save();
-
-        // Calculate center point for rotation
-        float centerX = left + size / 2;
-        float centerY = top + size / 2;
-
-        // Rotate based on direction
+        float centerX  = left + size / 2f;
+        float centerY  = top  + size / 2f;
         float rotation = getRotationAngle(robot.getFacing());
         canvas.rotate(rotation, centerX, centerY);
 
-        // Draw the bitmap (with small padding like your original rect)
-        Rect srcRect = new Rect(0, 0, robotBitmap.getWidth(), robotBitmap.getHeight());
-        RectF destRect = new RectF(left + 3, top + 3, left + size - 3, top + size - 3);
+        Rect    srcRect  = new Rect(0, 0, robotBitmap.getWidth(), robotBitmap.getHeight());
+        RectF   destRect = new RectF(left + 3, top + 3, left + size - 3, top + size - 3);
         canvas.drawBitmap(robotBitmap, srcRect, destRect, bitmapPaint);
 
-        // Restore canvas state
         canvas.restore();
     }
+
+    // Using image
+//    private void drawRobot(Canvas canvas) {
+//        if (robot == null || robotBitmap == null) return;
+//
+//        float left = offsetX + robot.getGridX() * cellSize;
+//        // Flip Y: gridY=0 at bottom
+//        float top = offsetY + (GRID_SIZE - robot.getGridY() - Robot.SIZE) * cellSize;
+//        float size = Robot.SIZE * cellSize;
+//
+//        // Save canvas state for rotation
+//        canvas.save();
+//
+//        // Calculate center point for rotation
+//        float centerX = left + size / 2;
+//        float centerY = top + size / 2;
+//
+//        // Rotate based on direction
+//        float rotation = getRotationAngle(robot.getFacing());
+//        canvas.rotate(rotation, centerX, centerY);
+//
+//        // Draw the bitmap (with small padding like your original rect)
+//        Rect srcRect = new Rect(0, 0, robotBitmap.getWidth(), robotBitmap.getHeight());
+//        RectF destRect = new RectF(left + 3, top + 3, left + size - 3, top + size - 3);
+//        canvas.drawBitmap(robotBitmap, srcRect, destRect, bitmapPaint);
+//
+//        // Restore canvas state
+//        canvas.restore();
+//    }
 
     private float getRotationAngle(Robot.Direction direction) {
         switch (direction) {
