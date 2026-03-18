@@ -40,5 +40,6 @@
     <string name="settings_appearance_light">浅色</string>
     <string name="settings_appearance_dark">深色</string>
     <string name="settings_language_label">语言</string>
+    <string name="settings_colorblind_label">色盲模式</string>
     <string name="btn_done">完成</string>
 </resources>
