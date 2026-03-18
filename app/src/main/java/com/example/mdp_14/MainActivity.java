@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.hardware.Sensor;
@@ -41,7 +42,9 @@ import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -64,6 +67,14 @@ public class MainActivity extends AppCompatActivity
     private static final String TAG = "MainActivity";
     private static final int REQUEST_BLUETOOTH_PERMISSIONS = 1;
 
+    // ===========================================================
+    // SAVED STATES
+    // ===========================================================
+
+    private static final String PREF_MAP_STATE = "map_state";
+    private static final String KEY_OBSTACLES = "obstacles";
+    private static final String KEY_ROBOT = "robot";
+
     // ============================================================
     // MANAGER CLASSES
     // ============================================================
@@ -79,6 +90,7 @@ public class MainActivity extends AppCompatActivity
     // ============================================================
     private MenuItem deviceNameMenuItem;
     private Button connectButton;
+    private String connectedDeviceName = null;
 
     // Status displays
     private TextView robotStatusText;
@@ -194,6 +206,7 @@ public class MainActivity extends AppCompatActivity
                 deleteObstacleButton, clearAllButton, resetButton, connectButton,
                 robotStatusText, positionText, directionText);
         uiManager.applyColorBlindMode();
+        updateActionBarMenuItem(connectedDeviceName);
 
         // Tilt control
         SensorManager sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
@@ -408,6 +421,7 @@ public class MainActivity extends AppCompatActivity
         uiManager.resetAllButtons();
         obstacleManager.resetAllRecognitions();
         uiManager.applyColorBlindMode();
+        updateActionBarMenuItem(connectedDeviceName);
     }
 
     // ============================================================
@@ -539,6 +553,114 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
+    // ===========================================================
+    // SAVE AND RESTORE MAP STATE
+    // ===========================================================
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        saveMapState();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        restoreMapState();
+    }
+
+    private void saveMapState() {
+        try {
+            SharedPreferences prefs = getSharedPreferences(PREF_MAP_STATE, MODE_PRIVATE);
+            SharedPreferences.Editor editor = prefs.edit();
+
+            // Save obstacles
+            List<Obstacle> obstacles = arenaMapView.getObstacles();
+            JSONArray obstaclesArray = new JSONArray();
+            for (Obstacle obs : obstacles) {
+                JSONObject obsJson = new JSONObject();
+                obsJson.put("id", obs.getId());
+                obsJson.put("x", obs.getGridX());
+                obsJson.put("y", obs.getGridY());
+                obsJson.put("width", obs.getWidth());
+                obsJson.put("height", obs.getHeight());
+                obsJson.put("direction", obs.getTargetFace().name());
+                if (obs.getRecognizedTargetId() != null) {
+                    obsJson.put("recognized", obs.getRecognizedTargetId());
+                }
+                obstaclesArray.put(obsJson);
+            }
+            editor.putString(KEY_OBSTACLES, obstaclesArray.toString());
+
+            // Save robot
+            Robot robot = arenaMapView.getRobot();
+            if (robot != null) {
+                JSONObject robotJson = new JSONObject();
+                robotJson.put("x", robot.getGridX());
+                robotJson.put("y", robot.getGridY());
+                robotJson.put("direction", robot.getFacing().name());
+                editor.putString(KEY_ROBOT, robotJson.toString());
+            } else {
+                editor.remove(KEY_ROBOT);
+            }
+
+            editor.apply();
+            Log.d(TAG, "Map state saved");
+        } catch (JSONException e) {
+            Log.e(TAG, "Error saving map state", e);
+        }
+    }
+
+    private void restoreMapState() {
+        try {
+            SharedPreferences prefs = getSharedPreferences(PREF_MAP_STATE, MODE_PRIVATE);
+
+            // Restore obstacles
+            String obstaclesJson = prefs.getString(KEY_OBSTACLES, null);
+            if (obstaclesJson != null) {
+                JSONArray obstaclesArray = new JSONArray(obstaclesJson);
+                arenaMapView.clearObstacles();
+
+                for (int i = 0; i < obstaclesArray.length(); i++) {
+                    JSONObject obsJson = obstaclesArray.getJSONObject(i);
+
+                    Obstacle obs = new Obstacle(
+                            obsJson.getInt("x"),
+                            obsJson.getInt("y"),
+                            obsJson.getInt("width"),
+                            obsJson.getInt("height")
+                    );
+                    obs.setId(obsJson.getInt("id"));
+                    obs.setTargetFace(Obstacle.Direction.valueOf(obsJson.getString("direction")));
+
+                    if (obsJson.has("recognized")) {
+                        obs.setRecognizedTargetId(obsJson.getString("recognized"));
+                    }
+
+                    arenaMapView.addObstacle(obs);
+                }
+                Log.d(TAG, "Restored " + obstaclesArray.length() + " obstacles");
+            }
+
+            // Restore robot
+            String robotJson = prefs.getString(KEY_ROBOT, null);
+            if (robotJson != null) {
+                JSONObject robot = new JSONObject(robotJson);
+                arenaMapView.spawnRobot();
+                arenaMapView.updateRobotPosition(
+                        robot.getInt("x"),
+                        robot.getInt("y"),
+                        Robot.Direction.valueOf(robot.getString("direction"))
+                );
+                uiManager.updateRobotInfo(arenaMapView.getRobot());
+                Log.d(TAG, "Robot restored");
+            }
+
+        } catch (JSONException e) {
+            Log.e(TAG, "Error restoring map state", e);
+        }
+    }
+
     // ============================================================
     // ARENA MAP LISTENER CALLBACKS
     // ============================================================
@@ -584,6 +706,7 @@ public class MainActivity extends AppCompatActivity
         setDPadButtonsEnabled(true);
         sendButton.setEnabled(true);
         tiltControlSwitch.setEnabled(true);
+        connectedDeviceName = deviceName;
         updateActionBarMenuItem(deviceName);
         logMessage("Device connected: " + deviceName, "#4CAF50");
         Toast.makeText(this, "Connected!", Toast.LENGTH_SHORT).show();
@@ -596,7 +719,8 @@ public class MainActivity extends AppCompatActivity
         sendButton.setEnabled(false);
         tiltControlSwitch.setEnabled(false);
         tiltControlSwitch.setChecked(false);
-        updateActionBarMenuItem(null);
+        connectedDeviceName = null;
+        updateActionBarMenuItem(connectedDeviceName);
         logMessage("Device disconnected", "#F44336");
         Toast.makeText(this, "Disconnected", Toast.LENGTH_SHORT).show();
     }
@@ -718,8 +842,8 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        updateActionBarMenuItem(null);
         uiManager.applyColorBlindMode();
+        updateActionBarMenuItem(connectedDeviceName);
         return true;
     }
 
@@ -734,11 +858,25 @@ public class MainActivity extends AppCompatActivity
 
     private void updateActionBarMenuItem(String deviceName) {
         if (deviceNameMenuItem != null) {
+            SharedPreferences prefs = getSharedPreferences("settings", MODE_PRIVATE);
+            boolean cbMode = prefs.getBoolean("colour_blind_mode", false);
+
+            int connectedColor    = ContextCompat.getColor(this,
+                    cbMode ? R.color.cb_coral : R.color.coral);
+            int disconnectedColor = ContextCompat.getColor(this,
+                    cbMode ? R.color.cb_mint : R.color.mint);
+
             if (bluetoothManager.isConnected() && deviceName != null) {
                 deviceNameMenuItem.setTitle(deviceName);
                 deviceNameMenuItem.setVisible(true);
+                connectButton.setText(R.string.btn_disconnect);
+                connectButton.setBackgroundTintList(
+                        ColorStateList.valueOf(connectedColor));
             } else {
                 deviceNameMenuItem.setVisible(false);
+                connectButton.setText(R.string.btn_connect);
+                connectButton.setBackgroundTintList(
+                        ColorStateList.valueOf(disconnectedColor));
             }
         }
     }
@@ -800,6 +938,7 @@ public class MainActivity extends AppCompatActivity
         colourBlindSwitch.setOnCheckedChangeListener((btn, isChecked) -> {
             prefs.edit().putBoolean("colour_blind_mode", isChecked).apply();
             uiManager.applyColorBlindMode();
+            updateActionBarMenuItem(connectedDeviceName);
         });
 
         // Language
