@@ -14,6 +14,7 @@ import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 
+import androidx.annotation.ColorRes;
 import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
@@ -91,7 +92,7 @@ public class ArenaMapView extends View {
     private void init() {
         // Grid lines paint
         gridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        gridPaint.setColor(Color.parseColor("#403D7EFF"));
+        gridPaint.setColor(ContextCompat.getColor(getContext(), R.color.grid_paint));
         gridPaint.setStrokeWidth(1f);
         gridPaint.setStyle(Paint.Style.STROKE);
 
@@ -103,12 +104,12 @@ public class ArenaMapView extends View {
 
         // Obstacle fill paint
         obstaclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        obstaclePaint.setColor(Color.BLACK);
+        obstaclePaint.setColor(ContextCompat.getColor(getContext(), R.color.ink));
         obstaclePaint.setStyle(Paint.Style.FILL);
 
         // Obstacle delete preview paint (red, semi-transparent)
         obstacleDeletePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        obstacleDeletePaint.setColor(Color.parseColor("#80FF0000"));  // Semi-transparent red
+        obstacleDeletePaint.setColor(ContextCompat.getColor(getContext(), R.color.obstacle_paint));
         obstacleDeletePaint.setStyle(Paint.Style.FILL);
 
         // Target indicator paint
@@ -118,41 +119,41 @@ public class ArenaMapView extends View {
 
         // Target text paint
         targetTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        targetTextPaint.setColor(Color.WHITE);
+        targetTextPaint.setColor(ContextCompat.getColor(getContext(), R.color.bg_card));
         targetTextPaint.setTextAlign(Paint.Align.CENTER);
 
         // Grid label paint
         gridLabelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        gridLabelPaint.setColor(Color.parseColor("#9BA5C0"));
+        gridLabelPaint.setColor(ContextCompat.getColor(getContext(), R.color.ink_soft));
         gridLabelPaint.setTextSize(24f);
         gridLabelPaint.setTextAlign(Paint.Align.CENTER);
 
         // Selected highlight
         selectedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        selectedPaint.setColor(Color.parseColor("#3D7EFF"));
+        selectedPaint.setColor(ContextCompat.getColor(getContext(), R.color.sky));
         selectedPaint.setStrokeWidth(4f);
         selectedPaint.setStyle(Paint.Style.STROKE);
 
         // Tooltip paint
         tooltipBgPaint = new Paint();
-        tooltipBgPaint.setColor(Color.parseColor("#DD000000"));
+        tooltipBgPaint.setColor(ContextCompat.getColor(getContext(), R.color.ink));
         tooltipBgPaint.setStyle(Paint.Style.FILL);
         tooltipBgPaint.setAntiAlias(true);
 
         tooltipTextPaint = new Paint();
-        tooltipTextPaint.setColor(Color.WHITE);
+        tooltipTextPaint.setColor(ContextCompat.getColor(getContext(), R.color.bg_card));
         tooltipTextPaint.setTextSize(18);
         tooltipTextPaint.setTextAlign(Paint.Align.CENTER);
         tooltipTextPaint.setAntiAlias(true);
 
         // Robot body paint
         robotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        robotPaint.setColor(Color.parseColor("#00C9A0")); // Green
+        robotPaint.setColor(ContextCompat.getColor(getContext(), R.color.mint)); // Green
         robotPaint.setStyle(Paint.Style.FILL);
 
         // Robot direction indicator paint
         robotDirectionPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        robotDirectionPaint.setColor(Color.parseColor("#007A62")); // Dark green
+        robotDirectionPaint.setColor(ContextCompat.getColor(getContext(), R.color.robot_direction_paint)); // Dark green
         robotDirectionPaint.setStyle(Paint.Style.FILL);
 
         // Gesture detector for long press
@@ -227,7 +228,7 @@ public class ArenaMapView extends View {
 
         // Draw inset map background with rounded corners
         Paint mapBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mapBgPaint.setColor(Color.parseColor("#E8EFFE"));
+        mapBgPaint.setColor(ContextCompat.getColor(getContext(), R.color.bg_inset));
         mapBgPaint.setStyle(Paint.Style.FILL);
 
         RectF mapRect = new RectF(

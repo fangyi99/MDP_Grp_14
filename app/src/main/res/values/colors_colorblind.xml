@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="cb_sky">#0072B2</color>
+    <color name="cb_mint">#E06C00</color>
+    <color name="cb_mint_soft">#1CE06C00</color>
+    <color name="cb_mint_soft_stroke">#33E06C00</color>
+    <color name="cb_coral">#D55E00</color>
+    <color name="cb_gold">#F0E442</color>
+    <color name="cb_violet">#CC79A7</color>
+</resources>
