@@ -17,6 +17,7 @@ public class MessageParser {
         void onStatusUpdate(String status);
         void onImageRecognition(String imageId, int obstacleId);
         void onRobotLocationUpdate(int x, int y, int direction);
+        void onSimulationTrigger();
     }
 
     public MessageParser(MessageCallback callback) {
@@ -28,6 +29,12 @@ public class MessageParser {
      */
     public void parseMessage(String message) {
         try {
+            if (message.trim().equalsIgnoreCase("simulation1")) {
+                if (callback != null) {
+                    callback.onSimulationTrigger();
+                }
+                return;
+            }
             // Check if message contains JSON markers
             if (message.contains("status")) {
                 parseStatusMessage(message);

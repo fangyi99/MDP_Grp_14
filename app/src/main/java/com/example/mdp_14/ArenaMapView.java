@@ -1,5 +1,8 @@
 package com.example.mdp_14;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -13,6 +16,7 @@ import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.animation.DecelerateInterpolator;
 
 import androidx.annotation.ColorRes;
 import androidx.core.content.ContextCompat;
@@ -64,6 +68,14 @@ public class ArenaMapView extends View {
 
     private OnObstacleActionListener listener;
     private GestureDetector gestureDetector;
+
+    // Animated
+    private float animatedRobotX = 0;
+    private float animatedRobotY = 0;
+    private float targetRobotX = 0;
+    private float targetRobotY = 0;
+    private boolean isAnimating = false;
+    private ValueAnimator robotAnimator;
 
     public interface OnObstacleActionListener {
         void onObstacleLongPress(Obstacle obstacle);
@@ -506,8 +518,11 @@ public class ArenaMapView extends View {
     private void drawRobot(Canvas canvas) {
         if (robot == null) return;
 
-        float left = offsetX + robot.getGridX() * cellSize;
-        float top  = offsetY + (GRID_SIZE - robot.getGridY() - Robot.SIZE) * cellSize;
+        float drawX = isAnimating ? animatedRobotX : robot.getGridX();
+        float drawY = isAnimating ? animatedRobotY : robot.getGridY();
+
+        float left = offsetX + drawX * cellSize;
+        float top  = offsetY + (GRID_SIZE - drawY - Robot.SIZE) * cellSize;
         float size = Robot.SIZE * cellSize;
 
         // Regenerate bitmap if size changed
@@ -522,9 +537,7 @@ public class ArenaMapView extends View {
         float rotation = getRotationAngle(robot.getFacing());
         canvas.rotate(rotation, centerX, centerY);
 
-        Rect    srcRect  = new Rect(0, 0, robotBitmap.getWidth(), robotBitmap.getHeight());
-        RectF   destRect = new RectF(left + 3, top + 3, left + size - 3, top + size - 3);
-        canvas.drawBitmap(robotBitmap, srcRect, destRect, bitmapPaint);
+        canvas.drawBitmap(robotBitmap, left, top, null);
 
         canvas.restore();
     }
@@ -799,12 +812,54 @@ public class ArenaMapView extends View {
     public void updateRobotPosition(int x, int y, Robot.Direction direction) {
         if (robot == null) {
             robot = new Robot(x, y, direction);
-        } else {
-            robot.setGridX(x);
-            robot.setGridY(y);
-            robot.setFacing(direction);
         }
-        invalidate();
+
+        // Store old position for animation
+        float oldX = robot.getGridX();
+        float oldY = robot.getGridY();
+
+        robot.setGridX(x);
+        robot.setGridY(y);
+        robot.setFacing(direction);
+
+        animateRobotMovement(oldX, oldY, x, y);
+//        invalidate();
+    }
+
+    private void animateRobotMovement(float fromX, float fromY, float toX, float toY) {
+        // Cancel any existing animation
+        if (robotAnimator != null && robotAnimator.isRunning()) {
+            robotAnimator.cancel();
+        }
+
+        animatedRobotX = fromX;
+        animatedRobotY = fromY;
+        targetRobotX = toX;
+        targetRobotY = toY;
+
+        robotAnimator = ValueAnimator.ofFloat(0f, 1f);
+        robotAnimator.setDuration(500); // 500ms animation
+        robotAnimator.setInterpolator(new DecelerateInterpolator());
+
+        robotAnimator.addUpdateListener(animation -> {
+            float progress = (float) animation.getAnimatedValue();
+            animatedRobotX = fromX + (toX - fromX) * progress;
+            animatedRobotY = fromY + (toY - fromY) * progress;
+            isAnimating = true;
+            invalidate(); // Redraw
+        });
+
+        robotAnimator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                isAnimating = false;
+                animatedRobotX = toX;
+                animatedRobotY = toY;
+                invalidate();
+            }
+        });
+
+        robotAnimator.start();
     }
 
     public boolean hasRobot() {
