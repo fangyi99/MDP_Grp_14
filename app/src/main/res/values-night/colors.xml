@@ -49,4 +49,7 @@
     <color name="tooltip_paint">#EEE8F0FF</color>
     <color name="robot_direction_paint">#00A882</color>
 
+    <color name="btn_disabled">#3A3A3C</color>
+    <color name="btn_disabled_text">#6E6E73</color>
+
 </resources>
