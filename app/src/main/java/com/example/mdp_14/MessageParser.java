@@ -20,6 +20,7 @@ public class MessageParser {
         void onStatusUpdate(String status);
         void onImageRecognition(String imageId, int obstacleId);
         void onRobotLocationUpdate(int x, int y, int direction);
+        void onSimulationTrigger();
     }
 
     public MessageParser(MessageCallback callback) {
@@ -73,6 +74,14 @@ public class MessageParser {
 
     public void parseSingleMessage(String message) {
         try {
+
+            if (message.trim().equalsIgnoreCase("simulation1")) {
+                if (callback != null) {
+                    callback.onSimulationTrigger();
+                }
+                return;
+            }
+
             JSONObject json = new JSONObject(message);
             String category = json.getString("cat");
 

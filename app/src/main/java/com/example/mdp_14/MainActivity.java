@@ -513,6 +513,151 @@ public class MainActivity extends AppCompatActivity
         updateActionBarMenuItem(connectedDeviceName);
     }
 
+    // ===========================================================
+    // Simulations
+    // ===========================================================
+
+    // for obstacles: [(2,9,E), (17,16,W), (12,0,N)];
+    public void onSimulationTrigger() {
+        final String[] simulationSteps = {
+            "{\"cat\": \"status\", \"value\": \"running\"}",
+            "{\"cat\": \"location\", \"value\": {\"x\": 0, \"y\": 3, \"d\": 0}}",
+            "{\"cat\": \"location\", \"value\": {\"x\": 4, \"y\": 5, \"d\": 2}}",
+            "{\"cat\": \"location\", \"value\": {\"x\": 5, \"y\": 8, \"d\": 6}}",
+            "{\"cat\": \"image-rec\", \"value\": {\"image_id\": \"6\", \"obstacle_id\":  \"1\"}}",
+            "{\"cat\": \"location\", \"value\": {\"x\": 7, \"y\": 8, \"d\": 6}}",
+            "{\"cat\": \"location\", \"value\": {\"x\": 4, \"y\": 12, \"d\": 0}}",
+            "{\"cat\": \"location\", \"value\": {\"x\": 8, \"y\": 15, \"d\": 2}}",
+            "{\"cat\": \"location\", \"value\": {\"x\": 13, \"y\": 15, \"d\": 2}}",
+            "{\"cat\": \"image-rec\", \"value\": {\"image_id\": \"B\", \"obstacle_id\":  \"2\"}}",
+            "{\"cat\": \"location\", \"value\": {\"x\": 9, \"y\": 15, \"d\": 2}}",
+            "{\"cat\": \"location\", \"value\": {\"x\": 11, \"y\": 12, \"d\": 4}}",
+            "{\"cat\": \"location\", \"value\": {\"x\": 11, \"y\": 2, \"d\": 4}}",
+            "{\"cat\": \"image-rec\", \"value\": {\"image_id\": \"2\", \"obstacle_id\":  \"3\"}}",
+            "{\"cat\": \"status\", \"value\": \"finished\"}"
+        };
+
+        final Handler handler = new Handler(Looper.getMainLooper());
+
+        handler.post(new Runnable() {
+            int currentStep = 0;
+
+            @Override
+            public void run() {
+                if (currentStep < simulationSteps.length) {
+                    messageParser.parseMessage(simulationSteps[currentStep]);
+                    Log.d(TAG, "Simulation step " + (currentStep + 1) + ": " + simulationSteps[currentStep]);
+
+                    currentStep++;
+                    handler.postDelayed(this, 2000); // 1 second between each step
+                } else {
+                    Log.d(TAG, "Simulation finished");
+                }
+            }
+        });
+
+
+//        Handler simulationHandler = new Handler(Looper.getMainLooper());
+//
+//        // Step 1: Send status update (1 second delay)
+//        simulationHandler.postDelayed(() -> {
+//            String statusMsg = "{\"cat\": \"status\", \"value\": \"running\"}";
+//            messageParser.parseMessage(statusMsg);
+//        }, 1000);
+//
+//        // Step 2: Send robot location update (2 seconds)
+//        simulationHandler.postDelayed(() -> {
+//            String locationMsg = "{\"cat\": \"location\", \"value\": {\"x\": 0, \"y\": 3, \"d\": 0}}";
+//            messageParser.parseMessage(locationMsg);
+//        }, 2000);
+//
+//        // Step 3: Send robot location update (2 seconds)
+//        simulationHandler.postDelayed(() -> {
+//            String locationMsg = "{\"cat\": \"location\", \"value\": {\"x\": 4, \"y\": 5, \"d\": 2}}";
+//            messageParser.parseMessage(locationMsg);
+//        }, 2000);
+//
+//        // Step 4: Send robot location update (2 seconds)
+//        simulationHandler.postDelayed(() -> {
+//            String locationMsg = "{\"cat\": \"location\", \"value\": {\"x\": 5, \"y\": 8, \"d\": 6}}";
+//            messageParser.parseMessage(locationMsg);
+//        }, 2000);
+//
+//        // Step 5: Send robot location update (2 seconds)
+//        simulationHandler.postDelayed(() -> {
+//            String locationMsg = "{\"cat\": \"location\", \"value\": {\"x\": 0, \"y\": 3, \"d\": 0}}";
+//            messageParser.parseMessage(locationMsg);
+//        }, 2000);
+//
+//        // Step 6: Send image recognition (3 seconds)
+//        simulationHandler.postDelayed(() -> {
+//            String imageMsg = "{\"cat\": \"image-rec\", \"value\": {\"image_id\": \"6\", \"obstacle_id\": 1}}";
+//            messageParser.parseMessage(imageMsg);
+//        }, 3000);
+//
+//        // Step 7: Send robot location update (2 seconds)
+//        simulationHandler.postDelayed(() -> {
+//            String locationMsg = "{\"cat\": \"location\", \"value\": {\"x\": 7, \"y\": 8, \"d\": 6}}";
+//            messageParser.parseMessage(locationMsg);
+//        }, 2000);
+//
+//        // Step 8: Send robot location update (2 seconds)
+//        simulationHandler.postDelayed(() -> {
+//            String locationMsg = "{\"cat\": \"location\", \"value\": {\"x\": 4, \"y\":12, \"d\": 0}}";
+//            messageParser.parseMessage(locationMsg);
+//        }, 2000);
+//
+//        // Step 9: Send robot location update (2 seconds)
+//        simulationHandler.postDelayed(() -> {
+//            String locationMsg = "{\"cat\": \"location\", \"value\": {\"x\": 8, \"y\": 15, \"d\": 2}}";
+//            messageParser.parseMessage(locationMsg);
+//        }, 2000);
+//
+//        // Step 10: Send robot location update (2 seconds)
+//        simulationHandler.postDelayed(() -> {
+//            String locationMsg = "{\"cat\": \"location\", \"value\": {\"x\": 13, \"y\": 15, \"d\": 2}}";
+//            messageParser.parseMessage(locationMsg);
+//        }, 2000);
+//
+//        // Step 11: Send image recognition (3 seconds)
+//        simulationHandler.postDelayed(() -> {
+//            String imageMsg = "{\"cat\": \"image-rec\", \"value\": {\"image_id\": \"B\", \"obstacle_id\": 2}}";
+//            messageParser.parseMessage(imageMsg);
+//            Log.d(TAG, "Simulation: Image recognition sent");
+//        }, 3000);
+//
+//        // Step 12: Send robot location update (2 seconds)
+//        simulationHandler.postDelayed(() -> {
+//            String locationMsg = "{\"cat\": \"location\", \"value\": {\"x\": 9, \"y\": 15, \"d\": 2}}";
+//            messageParser.parseMessage(locationMsg);
+//        }, 2000);
+//
+//        // Step 13: Send robot location update (2 seconds)
+//        simulationHandler.postDelayed(() -> {
+//            String locationMsg = "{\"cat\": \"location\", \"value\": {\"x\": 11, \"y\": 12, \"d\": 4}}";
+//            messageParser.parseMessage(locationMsg);
+//        }, 2000);
+//
+//        // Step 14: Send robot location update (2 seconds)
+//        simulationHandler.postDelayed(() -> {
+//            String locationMsg = "{\"cat\": \"location\", \"value\": {\"x\": 11, \"y\": 2, \"d\": 4}}";
+//            messageParser.parseMessage(locationMsg);
+//        }, 2000);
+//
+//        // Step 15: Send image recognition (3 seconds)
+//        simulationHandler.postDelayed(() -> {
+//            String imageMsg = "{\"cat\": \"image-rec\", \"value\": {\"image_id\": \"2\", \"obstacle_id\": 3}}";
+//            messageParser.parseMessage(imageMsg);
+//            Log.d(TAG, "Simulation: Image recognition sent");
+//        }, 3000);
+//
+//        // Step 16: Send status update (1 second delay)
+//        simulationHandler.postDelayed(() -> {
+//            String statusMsg = "{\"cat\": \"status\", \"value\": \"finished\"}";
+//            messageParser.parseMessage(statusMsg);
+//        }, 1000);
+    }
+
     // ============================================================
     // Tutorial Dialog
     // ============================================================

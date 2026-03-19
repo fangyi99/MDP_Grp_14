@@ -150,11 +150,6 @@ public class UIManager {
         deleteObstacleButton.setTextColor(ContextCompat.getColor(context, R.color.cb_coral));
         clearAllButton.setTextColor(ContextCompat.getColor(context, R.color.cb_coral));
         resetButton.setTextColor(ContextCompat.getColor(context, R.color.cb_coral));
-
-//        if (connectButton != null) {
-//            connectButton.setBackgroundTintList(ColorStateList.valueOf(
-//                    ContextCompat.getColor(context, R.color.cb_mint)));
-//        }
     }
 
     private void applyNormalColors() {
