@@ -75,6 +75,9 @@ public class MainActivity extends AppCompatActivity
     private static final String KEY_OBSTACLES = "obstacles";
     private static final String KEY_ROBOT = "robot";
 
+    private static boolean isAppJustLaunched = true;
+    private static final boolean SHOW_TUTORIAL_EVERY_TIME = true; // Set to false for first-launch only
+
     // ============================================================
     // MANAGER CLASSES
     // ============================================================
@@ -128,6 +131,11 @@ public class MainActivity extends AppCompatActivity
         setupListeners();
         checkPermissions();
 
+        if (isAppJustLaunched) {
+            showTutorialDialog();
+            isAppJustLaunched = false; // Mark as launched
+        }
+
         // Start listening for incoming connections
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             bluetoothManager.startListening();
@@ -137,6 +145,11 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        if (isFinishing()) {
+            isAppJustLaunched = true;
+        }
+
         bluetoothManager.cleanup();
         robotController.cleanup();
         if (tiltController != null) {
@@ -200,13 +213,6 @@ public class MainActivity extends AppCompatActivity
 
         // Obstacles
         obstacleManager = new ObstacleManager(arenaMapView);
-
-        // UI
-        uiManager = new UIManager(this, exploreButton, fastestPathButton,
-                deleteObstacleButton, clearAllButton, resetButton, connectButton,
-                robotStatusText, positionText, directionText);
-        uiManager.applyColorBlindMode();
-        updateActionBarMenuItem(connectedDeviceName);
 
         // Tilt control
         SensorManager sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
@@ -289,7 +295,16 @@ public class MainActivity extends AppCompatActivity
             showRobotOptionsDialog();
         } else {
             arenaMapView.spawnRobot();
-            uiManager.updateRobotInfo(arenaMapView.getRobot());
+            if (uiManager != null) {
+                uiManager.updateRobotInfo(arenaMapView.getRobot());
+            } else {
+                // Fallback if uiManager not ready yet
+                Robot robot = arenaMapView.getRobot();
+                if (robot != null) {
+                    positionText.setText(robot.getGridX() + "," + robot.getGridY());
+                    directionText.setText(robot.getFacing().name());
+                }
+            }
             Toast.makeText(this, "Robot spawned. Drag to position.", Toast.LENGTH_SHORT).show();
         }
     }
@@ -422,6 +437,45 @@ public class MainActivity extends AppCompatActivity
         obstacleManager.resetAllRecognitions();
         uiManager.applyColorBlindMode();
         updateActionBarMenuItem(connectedDeviceName);
+    }
+
+    // ============================================================
+    // Tutorial Dialog
+    // ============================================================
+
+    private void showTutorialIfFirstLaunch() {
+        if (SHOW_TUTORIAL_EVERY_TIME) {
+            // Show every time
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                showTutorialDialog();
+            }, 500);
+        } else {
+            // Show only on first launch
+            SharedPreferences prefs = getSharedPreferences("tutorial_prefs", MODE_PRIVATE);
+            boolean isFirstLaunch = prefs.getBoolean("first_launch", true);
+
+            if (isFirstLaunch) {
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    showTutorialDialog();
+                }, 500);
+            }
+        }
+    }
+
+    private void showTutorialDialog() {
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_tutorial, null);
+
+            AlertDialog dialog = new AlertDialog.Builder(this)
+                    .setView(dialogView)
+                    .setCancelable(true)
+                    .create();
+
+            Button btnGotIt = dialogView.findViewById(R.id.btnTutorialDone);
+            btnGotIt.setOnClickListener(v -> dialog.dismiss());
+
+            dialog.show();
+        }, 500);
     }
 
     // ============================================================
@@ -566,7 +620,9 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-        restoreMapState();
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            restoreMapState();
+        }, 100);
     }
 
     private void saveMapState() {
@@ -652,7 +708,18 @@ public class MainActivity extends AppCompatActivity
                         robot.getInt("y"),
                         Robot.Direction.valueOf(robot.getString("direction"))
                 );
-                uiManager.updateRobotInfo(arenaMapView.getRobot());
+
+                // Update UI - with null check
+                if (uiManager != null) {
+                    uiManager.updateRobotInfo(arenaMapView.getRobot());
+                } else {
+                    // Fallback if uiManager not ready
+                    Robot r = arenaMapView.getRobot();
+                    if (r != null) {
+                        positionText.setText(r.getGridX() + "," + r.getGridY());
+                        directionText.setText(r.getFacing().name());
+                    }
+                }
                 Log.d(TAG, "Robot restored");
             }
 
@@ -834,6 +901,13 @@ public class MainActivity extends AppCompatActivity
         MenuItem item = menu.findItem(R.id.connectBtn);
         connectButton = Objects.requireNonNull(item.getActionView()).findViewById(R.id.connectBtn);
 
+        if (uiManager == null) {
+            uiManager = new UIManager(this, exploreButton, fastestPathButton,
+                    deleteObstacleButton, clearAllButton, resetButton, connectButton,
+                    robotStatusText, positionText, directionText);
+            uiManager.applyColorBlindMode();
+        }
+
         connectButton.setOnClickListener(v -> {
             if (!bluetoothManager.isConnected()) {
                 checkPermissionsAndConnect();
@@ -842,7 +916,6 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        uiManager.applyColorBlindMode();
         updateActionBarMenuItem(connectedDeviceName);
         return true;
     }
@@ -943,6 +1016,12 @@ public class MainActivity extends AppCompatActivity
 
         // Language
         setupLanguageSpinner(languageSpinner, prefs, dialog);
+
+        // Tutorial Dialog
+        Button btnShowTutorial = dialogView.findViewById(R.id.btnShowTutorial);
+        btnShowTutorial.setOnClickListener(v -> {
+            showTutorialDialog();
+        });
 
         btnClose.setOnClickListener(v -> dialog.dismiss());
     }
