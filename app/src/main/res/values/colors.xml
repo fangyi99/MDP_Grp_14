@@ -55,4 +55,8 @@
     <color name="tooltip_paint">#DD000000</color>
     <color name="robot_direction_paint">#007A62</color>
 
+    <!-- Disabled state -->
+    <color name="btn_disabled">#BDBDBD</color>
+    <color name="btn_disabled_text">#757575</color>
+
 </resources>

@@ -127,6 +127,10 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
 
         initializeViews();
+
+        setButtonsVisualState(false);
+        setDPadButtonsEnabled(true);
+
         initializeManagers();
         setupListeners();
         checkPermissions();
@@ -226,15 +230,58 @@ public class MainActivity extends AppCompatActivity
         arenaMapView.setOnObstacleActionListener(this);
     }
 
+    // ===========================================================
+    // Enabling/Disabling Buttons
+    // ===========================================================
+
+    private void setButtonsVisualState(boolean enabled) {
+        // Visual feedback - make disabled buttons look greyed out
+        float alpha = enabled ? 1.0f : 0.3f;
+        sendObstaclesButton.setAlpha(alpha);
+        exploreButton.setAlpha(alpha);
+        fastestPathButton.setAlpha(alpha);
+        resetButton.setAlpha(alpha);
+        upButton.setAlpha(alpha);
+        downButton.setAlpha(alpha);
+        leftButton.setAlpha(alpha);
+        rightButton.setAlpha(alpha);
+        sendButton.setAlpha(alpha);
+        messageInput.setAlpha(alpha);
+    }
+
     // ============================================================
     // D-PAD CONTROLS
     // ============================================================
 
     private void setupDPadControls() {
-        upButton.setOnClickListener(v -> sendCommand("move:up"));
-        downButton.setOnClickListener(v -> sendCommand("move:down"));
-        leftButton.setOnClickListener(v -> sendCommand("move:left"));
-        rightButton.setOnClickListener(v -> sendCommand("move:right"));
+        upButton.setOnClickListener(v -> {
+            if (!bluetoothManager.isConnected()) {
+                Toast.makeText(this, "Please connect to robot first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            sendCommand("move:up");
+        });
+        downButton.setOnClickListener(v -> {
+            if (!bluetoothManager.isConnected()) {
+                Toast.makeText(this, "Please connect to robot first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            sendCommand("move:down");
+        });
+        leftButton.setOnClickListener(v -> {
+            if (!bluetoothManager.isConnected()) {
+                Toast.makeText(this, "Please connect to robot first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            sendCommand("move:left");
+        });
+        rightButton.setOnClickListener(v -> {
+            if (!bluetoothManager.isConnected()) {
+                Toast.makeText(this, "Please connect to robot first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            sendCommand("move:right");
+        });
 
         sendButton.setOnClickListener(v -> {
             String message = messageInput.getText().toString().trim();
@@ -247,7 +294,13 @@ public class MainActivity extends AppCompatActivity
         });
 
         tiltControlSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (isChecked && bluetoothManager.isConnected()) {
+            if (isChecked && !bluetoothManager.isConnected()) {
+                tiltControlSwitch.setChecked(false);
+                Toast.makeText(this, "Please connect to robot first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (isChecked) {
                 tiltController.enable();
                 setDPadButtonsEnabled(false);
             } else {
@@ -280,14 +333,39 @@ public class MainActivity extends AppCompatActivity
         });
 
         spawnRobotButton.setOnClickListener(v -> handleSpawnRobot());
-        sendObstaclesButton.setOnClickListener(v -> handleSendObstacles());
-        resetButton.setOnClickListener(v -> handleReset());
-        exploreButton.setOnClickListener(v -> handleExplore());
-        fastestPathButton.setOnClickListener(v -> handleFastestPath());
         addObstacleButton.setOnClickListener(v -> showAddObstacleDialog());
         editObstacleButton.setOnClickListener(v -> handleEditObstacle());
         deleteObstacleButton.setOnClickListener(v -> handleDeleteObstacle());
         clearAllButton.setOnClickListener(v -> handleClearAll());
+
+        sendObstaclesButton.setOnClickListener(v -> {
+            if (!bluetoothManager.isConnected()) {
+                Toast.makeText(this, "Please connect to robot first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            handleSendObstacles();
+        });
+        resetButton.setOnClickListener(v -> {
+            if (!bluetoothManager.isConnected()) {
+                Toast.makeText(this, "Please connect to robot first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            handleReset();
+        });
+        exploreButton.setOnClickListener(v -> {
+            if (!bluetoothManager.isConnected()) {
+                Toast.makeText(this, "Please connect to robot first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            handleExplore();
+        });
+        fastestPathButton.setOnClickListener(v -> {
+            if (!bluetoothManager.isConnected()) {
+                Toast.makeText(this, "Please connect to robot first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            handleFastestPath();
+        });
     }
 
     private void handleSpawnRobot() {
@@ -384,7 +462,7 @@ public class MainActivity extends AppCompatActivity
     private void handleReset() {
         robotController.stop();
         resetAll();
-        Toast.makeText(this, "Robot stopped and reset", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Robot stopped and resetted", Toast.LENGTH_SHORT).show();
     }
 
     private void handleExplore() {
@@ -401,8 +479,6 @@ public class MainActivity extends AppCompatActivity
         Obstacle selected = arenaMapView.getSelectedObstacle();
         if (selected != null) {
             showEditObstacleDialog(selected);
-        } else {
-            Toast.makeText(this, "Please select an obstacle first", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -412,8 +488,6 @@ public class MainActivity extends AppCompatActivity
             arenaMapView.removeObstacle(selected);
             sendObstacleUpdate();
             Toast.makeText(this, "Obstacle deleted", Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(this, "Please select an obstacle first", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -770,9 +844,9 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onConnected(String deviceName) {
         uiManager.setConnectedState(deviceName);
-        setDPadButtonsEnabled(true);
-        sendButton.setEnabled(true);
-        tiltControlSwitch.setEnabled(true);
+
+        setButtonsVisualState(true);
+
         connectedDeviceName = deviceName;
         updateActionBarMenuItem(deviceName);
         logMessage("Device connected: " + deviceName, "#4CAF50");
@@ -782,10 +856,9 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onDisconnected() {
         uiManager.setDisconnectedState();
-        setDPadButtonsEnabled(false);
-        sendButton.setEnabled(false);
-        tiltControlSwitch.setEnabled(false);
-        tiltControlSwitch.setChecked(false);
+
+        setButtonsVisualState(false);
+
         connectedDeviceName = null;
         updateActionBarMenuItem(connectedDeviceName);
         logMessage("Device disconnected", "#F44336");
@@ -832,8 +905,6 @@ public class MainActivity extends AppCompatActivity
         if (obstacle != null) {
             obstacle.setRecognizedTargetId(displayId);
             arenaMapView.updateObstacle(obstacle);
-            Toast.makeText(this, "Target " + displayId + " on Obstacle #" + obstacleId,
-                    Toast.LENGTH_SHORT).show();
             Log.d(TAG, "Image recognized: " + displayId + " on obstacle " + obstacleId);
         } else {
             Log.w(TAG, "Obstacle #" + obstacleId + " not found");
@@ -862,7 +933,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onTimerExpired() {
         uiManager.resetAllButtons();
-        Toast.makeText(this, "Time's up! Robot stopped.", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Auto stop mode activated", Toast.LENGTH_LONG).show();
     }
 
     @Override
