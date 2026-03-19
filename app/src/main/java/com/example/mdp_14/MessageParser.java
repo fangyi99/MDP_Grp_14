@@ -45,13 +45,12 @@ public class MessageParser {
 
     /**
      * Parse STATUS message
-     * Format: {"cat": "status", "value": {"robot_status": <status>}}
+     * Format: {"cat": "status", "value": <status>}
      */
     private void parseStatusMessage(String message) {
         try {
             JSONObject json = new JSONObject(message);
-            JSONObject value = json.getJSONObject("value");
-            String status = value.getString("robot_status");
+            String status = json.getString("value");
 
             if (callback != null) {
                 callback.onStatusUpdate(status);
