@@ -5,6 +5,9 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Parses incoming JSON messages from the robot and delegates to appropriate handlers
  */
@@ -28,15 +31,67 @@ public class MessageParser {
      */
     public void parseMessage(String message) {
         try {
-            // Check if message contains JSON markers
-            if (message.contains("status")) {
-                parseStatusMessage(message);
-            } else if (message.contains("image-rec")) {
-                parseImageRecognitionMessage(message);
-            } else if (message.contains("location")) {
-                parseLocationMessage(message);
-            } else {
-                Log.d(TAG, "Unknown message type: " + message);
+            message = message.trim();
+
+            // Find all JSON objects in the message
+            List<String> jsonMessages = extractJsonObjects(message);
+
+            for (String msg : jsonMessages) {
+                parseSingleMessage(msg.trim());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error parsing message: " + message, e);
+        }
+    }
+
+    private List<String> extractJsonObjects(String message) {
+        List<String> results = new ArrayList<>();
+        int braceCount = 0;
+        int startIndex = -1;
+
+        for (int i = 0; i < message.length(); i++) {
+            char c = message.charAt(i);
+
+            if (c == '{') {
+                if (braceCount == 0) {
+                    startIndex = i; // Start of a JSON object
+                }
+                braceCount++;
+            }else if (c == '}') {
+                braceCount--;
+                if (braceCount == 0 && startIndex != -1) {
+                    // Complete JSON object found
+                    String jsonObj = message.substring(startIndex, i + 1);
+                    results.add(jsonObj);
+                    startIndex = -1;
+                }
+            }
+        }
+
+        return results;
+    }
+
+    public void parseSingleMessage(String message) {
+        try {
+            JSONObject json = new JSONObject(message);
+            String category = json.getString("cat");
+
+            switch (category) {
+                case "status":
+                    parseStatusMessage(message);
+                    break;
+                case "image-rec":
+                    parseImageRecognitionMessage(message);
+                    break;
+                case "location":
+                    parseLocationMessage(message);
+                    break;
+                case "info":
+                    Log.d(TAG, "Info message received: " + message);
+                    break;
+                default:
+                    Log.d(TAG, "Info message received: " + message);
+                    break;
             }
         } catch (Exception e) {
             Log.e(TAG, "Error parsing message: " + message, e);

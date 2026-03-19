@@ -857,6 +857,8 @@ public class MainActivity extends AppCompatActivity
     public void onDisconnected() {
         uiManager.setDisconnectedState();
 
+        resetAll();
+
         setButtonsVisualState(false);
 
         connectedDeviceName = null;
